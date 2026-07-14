@@ -268,18 +268,26 @@ func TestRunnerTargetDirModeRecursesAndSkipsIgnoredDirs(t *testing.T) {
 		t.Fatalf("run failed: %v", err)
 	}
 
-	if got, want := len(result.Files), 1; got != want {
+	wantPaths := []string{
+		filepath.Join("src", "app", ".env.example"),
+		filepath.Join("src", "examples", "broken", ".env.example"),
+	}
+
+	if got, want := len(result.Files), len(wantPaths); got != want {
 		t.Fatalf("unexpected file count: got %d want %d", got, want)
 	}
-	wantPath := filepath.Join("src", "app", ".env.example")
-	if got, want := result.Files[0].Path, wantPath; got != want {
-		t.Fatalf("unexpected parsed path: got %q want %q", got, want)
+	for i, wantPath := range wantPaths {
+		if got, want := result.Files[i].Path, wantPath; got != want {
+			t.Fatalf("unexpected parsed path at %d: got %q want %q", i, got, want)
+		}
 	}
-	if got, want := len(result.Findings), 1; got != want {
+	if got, want := len(result.Findings), len(wantPaths); got != want {
 		t.Fatalf("unexpected finding count: got %d want %d", got, want)
 	}
-	if got, want := result.Findings[0].File, wantPath; got != want {
-		t.Fatalf("unexpected finding file: got %q want %q", got, want)
+	for i, wantPath := range wantPaths {
+		if got, want := result.Findings[i].File, wantPath; got != want {
+			t.Fatalf("unexpected finding file at %d: got %q want %q", i, got, want)
+		}
 	}
 }
 
