@@ -61,7 +61,7 @@ make release
 
 Before a release pull request merges, confirm:
 
-- the PR title follows the conventional commit format used by release-please
+- the PR title follows the conventional commit format used by release-please, including accepted types such as `feat`, `fix` and `hotfix`
 - the changelog entry(ies) looks correct
 - the manifest version is the version you expect
 - the release pull request has maintainer approval
