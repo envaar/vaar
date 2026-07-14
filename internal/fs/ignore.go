@@ -9,7 +9,6 @@ package fs
 // trees that would add noise without changing lint behavior.
 var ignoredDirectories = map[string]struct{}{
 	".git":         {},
-	"examples":     {},
 	"node_modules": {},
 	"vendor":       {},
 	"dist":         {},

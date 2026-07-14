@@ -40,13 +40,14 @@ func TestDiscoverFindsDotenvFilesAndSkipsBuildDirs(t *testing.T) {
 		t.Fatalf("discover failed: %v", err)
 	}
 
-	if got, want := len(files), 2; got != want {
+	if got, want := len(files), 3; got != want {
 		t.Fatalf("unexpected file count: got %d want %d", got, want)
 	}
 
 	wantFirst := filepath.Join(root, ".env")
 	wantSecond := filepath.Join(root, "app", ".env.example")
-	if files[0] != wantFirst || files[1] != wantSecond {
+	wantThird := filepath.Join(root, "examples", "broken", ".env.example")
+	if files[0] != wantFirst || files[1] != wantSecond || files[2] != wantThird {
 		t.Fatalf("unexpected discovery result: %#v", files)
 	}
 }

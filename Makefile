@@ -40,7 +40,7 @@ lint: ## Check formatting and run the CLI lint smoke test.
 	fi
 	@tmpdir="$$(mktemp -d)"; \
 	trap 'rm -rf "$$tmpdir"' EXIT INT TERM; \
-	rsync -a --exclude='.git' --exclude='bin' --exclude='dist' --exclude='.env' ./ "$$tmpdir"/; \
+	rsync -a --exclude='.git' --exclude='bin' --exclude='dist' --exclude='.env' --exclude='examples' ./ "$$tmpdir"/; \
 	cd "$$tmpdir" && $(GO) run ./cmd/vaar lint
 
 bench: ## Run the lint smoke benchmark.
