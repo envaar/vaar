@@ -76,7 +76,7 @@ Vaar uses [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
 - Use `<type>: <description>` for commits and PR titles.
 - Keep descriptions short, imperative and specific.
 - Use `feat` for new user-visible behavior.
-- Use `fix` for bug fixes.
+- Use `fix` or `hotfix` for bug fixes.
 - Use `docs`, `test`, `refactor`, `chore`, `ci`, `build` or `perf` when necessary.
 - Use `!` only when a [Maintainer](mailto:core@envaar.dev) explicitly approves a breaking change.
 - If you are unsure about your change or need any clarifications, please discuss in the related [Issue](https://github.com/envaar/vaar/issues) or [Discussion](https://github.com/envaar/vaar/discussions).

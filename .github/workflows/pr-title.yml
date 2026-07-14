@@ -30,14 +30,14 @@ jobs:
         with:
           script: |
             const title = context.payload.pull_request.title.trim();
-            const pattern = /^(feat|fix|docs|test|refactor|chore|ci|build|perf)(\([^)]+\))?(!)?: .+$/;
+            const pattern = /^(feat|fix|docs|test|refactor|chore|ci|build|perf|hotfix)(\([^)]+\))?(!)?: .+$/;
 
             if (!pattern.test(title)) {
               core.setFailed(
                 [
                   'Pull request title must match conventional commit format.',
                   'Use "<type>: <description>" or "<type>(scope)!: <description>".',
-                  'Allowed types: feat, fix, docs, test, refactor, chore, ci, build, perf',
+                  'Allowed types: feat, fix, docs, test, refactor, chore, ci, build, perf, hotfix',
                   `Got: ${title}`,
                 ].join(' ')
               );
