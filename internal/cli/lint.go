@@ -15,7 +15,8 @@ import (
 )
 
 // newLintCmd builds the lint subcommand, wires the built-in rule set and
-// exposes the flag surface for safe fixes, JSON output and rule selection.
+// exposes the flag surface for safe fixes, JSON output, rule selection and
+// explicit discovery scopes.
 func newLintCmd() *cobra.Command {
 	var selection lint.Options
 	var lintFix bool
@@ -26,24 +27,33 @@ func newLintCmd() *cobra.Command {
 		Short: "Run environment lint checks",
 		Long: `Run Vaar's lint rules against discovered dotenv files in the current repository.
 
-The command supports safe fixes, JSON output and repeatable rule selection
-flags. Use --only to narrow the selected rules and --skip to remove rules after
-selection:
+The command supports safe fixes, JSON output, repeatable rule selection flags
+and explicit target scopes. Use --only to narrow the selected rules, --skip to
+remove rules after selection, --target to lint one file and --target-dir to
+discover files under one directory:
 
   vaar lint --only=duplicate-key
   vaar lint --only=duplicate-key --only=invalid-key-name
   vaar lint --skip=trailing-whitespace
-  vaar lint --skip=trailing-whitespace --skip=extra-blank-line`,
+  vaar lint --skip=trailing-whitespace --skip=extra-blank-line
+  vaar lint --target=.env.staging
+  vaar lint --target-dir=src
+
+Use either --target or --target-dir, not both.`,
 		Example: `  vaar lint
   vaar lint --json
   vaar lint --fix
   vaar lint --only=duplicate-key --only=invalid-key-name
-  vaar lint --skip=trailing-whitespace --skip=extra-blank-line`,
+  vaar lint --skip=trailing-whitespace --skip=extra-blank-line
+  vaar lint --target=.env.staging
+  vaar lint --target-dir=src`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runner := lint.NewRunner(rules.All()...)
 			result, err := runner.Run(cmd.Context(), lint.Options{
 				Root:      ".",
+				Target:    selection.Target,
+				TargetDir: selection.TargetDir,
 				OnlyRules: selection.OnlyRules,
 				SkipRules: selection.SkipRules,
 				Fix:       lintFix,
@@ -79,6 +89,8 @@ selection:
 	flags := cmd.Flags()
 	flags.BoolVar(&lintFix, "fix", false, "Apply safe formatting fixes before reporting")
 	flags.BoolVar(&lintJSON, "json", false, "Render findings as JSON")
+	flags.StringVar(&selection.Target, "target", "", "Lint only the specified file path.")
+	flags.StringVar(&selection.TargetDir, "target-dir", "", "Recursively lint dotenv files under the specified directory.")
 	flags.StringArrayVar(&selection.OnlyRules, "only", nil, "Run only the specified rule ID. Can be repeated.")
 	flags.StringArrayVar(&selection.SkipRules, "skip", nil, "Skip the specified rule ID. Can be repeated.")
 

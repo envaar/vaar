@@ -202,6 +202,87 @@ func TestRunnerOnlySelectionStillUsesRealRules(t *testing.T) {
 	}
 }
 
+func TestRunnerTargetFileModeUsesExplicitPath(t *testing.T) {
+	root := t.TempDir()
+
+	mustWrite := func(path, content string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir failed: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("write failed: %v", err)
+		}
+	}
+
+	mustWrite(filepath.Join(root, ".env"), "ROOT=value\nROOT=other\n")
+	mustWrite(filepath.Join(root, ".env.staging"), "STAGING=value\nSTAGING=other\n")
+
+	runner := lint.NewRunner(rules.All()...)
+	result, err := runner.Run(context.Background(), lint.Options{
+		Root:   root,
+		Target: ".env.staging",
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	if got, want := len(result.Files), 1; got != want {
+		t.Fatalf("unexpected file count: got %d want %d", got, want)
+	}
+	if got, want := result.Files[0].Path, ".env.staging"; got != want {
+		t.Fatalf("unexpected parsed path: got %q want %q", got, want)
+	}
+	if got, want := len(result.Findings), 1; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+	if got, want := result.Findings[0].File, ".env.staging"; got != want {
+		t.Fatalf("unexpected finding file: got %q want %q", got, want)
+	}
+}
+
+func TestRunnerTargetDirModeRecursesAndSkipsIgnoredDirs(t *testing.T) {
+	root := t.TempDir()
+
+	mustWrite := func(path, content string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir failed: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("write failed: %v", err)
+		}
+	}
+
+	mustWrite(filepath.Join(root, ".env"), "ROOT=value\nROOT=other\n")
+	mustWrite(filepath.Join(root, "src", "app", ".env.example"), "APP=value\nAPP=other\n")
+	mustWrite(filepath.Join(root, "src", "examples", "broken", ".env.example"), "EXAMPLE=value\nEXAMPLE=other\n")
+	mustWrite(filepath.Join(root, "src", "dist", ".env.local"), "DIST=value\nDIST=other\n")
+
+	runner := lint.NewRunner(rules.All()...)
+	result, err := runner.Run(context.Background(), lint.Options{
+		Root:      root,
+		TargetDir: "src",
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	if got, want := len(result.Files), 1; got != want {
+		t.Fatalf("unexpected file count: got %d want %d", got, want)
+	}
+	wantPath := filepath.Join("src", "app", ".env.example")
+	if got, want := result.Files[0].Path, wantPath; got != want {
+		t.Fatalf("unexpected parsed path: got %q want %q", got, want)
+	}
+	if got, want := len(result.Findings), 1; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+	if got, want := result.Findings[0].File, wantPath; got != want {
+		t.Fatalf("unexpected finding file: got %q want %q", got, want)
+	}
+}
+
 func testRules() ([]lint.Rule, map[string]*int) {
 	counts := map[string]*int{
 		"duplicate-key":       new(int),

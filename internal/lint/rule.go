@@ -14,6 +14,10 @@ import "github.com/envaar/vaar/internal/envfile"
 type Options struct {
 	// Root is the repository root to scan.
 	Root string
+	// Target limits a run to one explicit file path.
+	Target string
+	// TargetDir limits a run to dotenv files discovered under one directory.
+	TargetDir string
 	// OnlyRules keeps only the named rule IDs.
 	OnlyRules []string
 	// SkipRules removes the named rule IDs after selection.

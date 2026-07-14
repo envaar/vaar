@@ -7,7 +7,7 @@ This page contains the lint-specific command reference for Vaar. Refer to [READM
 
 ## Description of the Command
 
-`vaar lint` is the primary command for checking a repository for environment configuration issues. It reports findings with line numbers, supports deterministic fixes with `--fix`, machine-readable output with `--json` and explicit rule selection or exclusion with `--only` and `--skip` respectively.
+`vaar lint` is the primary command for checking a repository for environment configuration issues. It reports findings with line numbers, supports deterministic fixes with `--fix`, machine-readable output with `--json`, explicit rule selection or exclusion with `--only` and `--skip` and explicit scope selection with either `--target` or `--target-dir`.
 
 To use lint, run the command:
 
@@ -19,6 +19,8 @@ Lint also comes with additional flags such as:
 - `vaar lint --json`
 - `vaar lint --only=[rule-name]`
 - `vaar lint --skip=[rule-name]`
+- `vaar lint --target=.env.staging`
+- `vaar lint --target-dir=src`
 
 ## Lint Flags
 
@@ -29,6 +31,18 @@ Applies only the safe formatting fixes that can be made deterministically.
 ### `--json`
 
 Renders findings as a JSON output. To be used when a CI job, editor integration or wrapper script needs structured output instead of text.
+
+### `--target`
+
+Lints only the specified file path. The path can be relative or absolute, and the file does not need to match the default dotenv filename list. 
+
+`--target` and `--target-dir` are mutually exclusive. If both `--target` and `--target-dir` are supplied, `vaar lint` returns an error.
+
+### `--target-dir`
+
+Recursively discovers dotenv files under the specified directory while keeping the normal repository ignore behavior.
+
+`--target` and `--target-dir` are mutually exclusive. If both `--target` and `--target-dir` are supplied, `vaar lint` returns an error.
 
 ### `--only`
 

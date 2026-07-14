@@ -131,6 +131,13 @@ To lint while skipping specific rules:
 vaar lint --skip=trailing-whitespace
 ```
 
+To lint one explicit dotenv file or one directory tree:
+
+```bash
+vaar lint --target=.env.staging
+vaar lint --target-dir=src
+```
+
 For the lint-specific command reference and rule catalog, see [docs/lint/README.md](./docs/lint/README.md).
 
 ### Examples
