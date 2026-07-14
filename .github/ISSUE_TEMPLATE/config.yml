@@ -1,0 +1,9 @@
+# Copyright © 2026 envaar
+# SPDX-License-Identifier: Apache-2.0
+
+blank_issues_enabled: false
+
+contact_links:
+  - name: Questions and Discussions
+    url: https://github.com/envaar/vaar/discussions
+    about: Ask questions about usage, discuss ideas or get help before opening an issue.

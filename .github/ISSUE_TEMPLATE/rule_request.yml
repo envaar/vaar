@@ -1,0 +1,77 @@
+# Copyright © 2026 envaar
+# SPDX-License-Identifier: Apache-2.0
+
+name: Rule request
+description: Suggest a new lint rule for Vaar
+title: "rule: "
+labels:
+  - rule
+  - enhancement
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggest a rule that catches a real and useful mistake in a project's environment and secrets.
+        Do not include real secrets, tokens, private URLs or any such sensitive information.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What mistake should Vaar catch?
+    validations:
+      required: true
+
+  - type: input
+    id: rule-id
+    attributes:
+      label: Proposed rule name
+      description: Use kebab-case for your proposed rule name.
+      placeholder: "duplicate-key"
+
+  - type: textarea
+    id: bad
+    attributes:
+      label: Bad example
+      description: An example of a mistake in the .env input that should be reported through your rule.
+      render: env
+    validations:
+      required: true
+
+  - type: textarea
+    id: good
+    attributes:
+      label: Good example
+      description: An example of correct values in the .env input that should be accepted by your rule.
+      render: env
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected output
+      description: Describe the desired output format finding Vaar should report.
+      placeholder: "[error] duplicate-key .env:3 DATABASE_URL is defined more than once"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Evidence level
+      description: Pick the weakest accurate evidence level this rule can support.
+      options:
+        - Deterministic (for exact findings proven from local files, schemas, configuration, Git state or other directly inspectable local evidence.)
+        - Contextual (for exact or bounded findings produced through supported repository, language, framework, CI, container or project analysis.)
+        - Heuristic (for candidate findings (warnings) based on patterns, naming, entropy, inference, scoring or commonly accepted practices where manual review is required.)
+        - External (for findings verified through external tools, APIs, provider state, runtime instrumentation and so on.)
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Parser edge cases, framework behavior, autofix expectations, related tools or any other such relevant information.

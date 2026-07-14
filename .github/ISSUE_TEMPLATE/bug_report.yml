@@ -1,0 +1,92 @@
+# Copyright © 2026 envaar
+# SPDX-License-Identifier: Apache-2.0
+
+name: Bug report
+description: Report incorrect or unexpected behavior
+title: "bug: "
+labels:
+  - bug
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please include the steps to reproduce the same.
+        Do not include real secrets, tokens, private URLs or any such sensitive information.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is not working?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide the exact steps to reproduce the issue in detail.
+      placeholder: |
+        .env:
+        ```env
+        FOO=bar
+        ```
+
+        Command:
+        ```sh
+        vaar lint
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual (buggy) behavior
+    validations:
+      required: true
+
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      description: Include the exact command and flags that triggered the issue.
+      placeholder: "vaar lint --json"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Vaar version
+      description: Paste the output of `vaar --version`.
+      placeholder: "v0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - WSL
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Output mode, rule names, config files, logs, flags, screenshots, videos or anything else useful. Remember to redact sensitive values or personal information.

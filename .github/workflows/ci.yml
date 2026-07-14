@@ -1,0 +1,108 @@
+# Copyright © 2026 envaar
+# SPDX-License-Identifier: Apache-2.0
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hygiene:
+    name: Hygiene
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Format check
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "gofmt found unformatted Go files:"
+            gofmt -l .
+            exit 1
+          fi
+
+      - name: Go mod tidy check
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: Lint smoke test
+        run: go run ./cmd/vaar lint
+
+      - name: Lint smoke test with JSON output
+        run: go run ./cmd/vaar lint --json
+
+      - name: Fix smoke test
+        run: |
+          binary="$RUNNER_TEMP/vaar"
+          go build -buildvcs=false -o "$binary" ./cmd/vaar
+
+          tmpdir="$(mktemp -d)"
+          expected="$RUNNER_TEMP/expected.env"
+          printf 'KEY=value\n' > "$expected"
+          printf 'KEY=value  \n\n\n' > "$tmpdir/.env"
+
+          (cd "$tmpdir" && "$binary" lint --fix)
+
+          if ! cmp -s "$expected" "$tmpdir/.env"; then
+            echo "unexpected normalized content:"
+            cat -vet "$tmpdir/.env"
+            exit 1
+          fi
+
+  build-test:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build -buildvcs=false -o "$RUNNER_TEMP/vaar$(go env GOEXE)" ./cmd/vaar
+
+      - name: Smoke version
+        run: |
+          binary="$RUNNER_TEMP/vaar$(go env GOEXE)"
+          "$binary" --version

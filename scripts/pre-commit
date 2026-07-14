@@ -1,0 +1,15 @@
+#!/bin/sh
+# Copyright © 2026 envaar
+# SPDX-License-Identifier: Apache-2.0
+
+set -eu
+
+if repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+	:
+else
+	repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+fi
+
+cd "$repo_root"
+
+exec make lint
