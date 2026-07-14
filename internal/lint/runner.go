@@ -46,10 +46,10 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 
 	absRoot, err := filepath.Abs(opts.Root)
 	if err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("resolve root %q: %w", opts.Root, err)
 	}
 
-	paths, err := fs.Discover(absRoot)
+	paths, err := discoverPaths(absRoot, opts.Root, opts.Target, opts.TargetDir)
 	if err != nil {
 		return Result{}, err
 	}
@@ -95,6 +95,67 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 	}, nil
 }
 
+// discoverPaths resolves the active lint scope and keeps the default recursive
+// repository walk unchanged when no explicit target flags are provided.
+func discoverPaths(root, rootLabel, target, targetDir string) ([]string, error) {
+	if target != "" && targetDir != "" {
+		return nil, fmt.Errorf("--target and --target-dir cannot be used together")
+	}
+
+	if target != "" {
+		path := resolvePath(root, target)
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, scopePathError("--target", target, err)
+		}
+		if info.IsDir() {
+			return nil, fmt.Errorf("--target must point to a file: %s", target)
+		}
+		return []string{path}, nil
+	}
+
+	if targetDir != "" {
+		path := resolvePath(root, targetDir)
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, scopePathError("--target-dir", targetDir, err)
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("--target-dir must point to a directory: %s", targetDir)
+		}
+
+		paths, err := fs.Discover(path)
+		if err != nil {
+			return nil, fmt.Errorf("discovering files under %q: %w", targetDir, err)
+		}
+		return paths, nil
+	}
+
+	paths, err := fs.Discover(root)
+	if err != nil {
+		return nil, fmt.Errorf("discovering files under %q: %w", rootLabel, err)
+	}
+	return paths, nil
+}
+
+// resolvePath turns a user-supplied relative or absolute scope path into an
+// absolute path anchored to the current lint root.
+func resolvePath(root, path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	return filepath.Join(root, path)
+}
+
+// scopePathError keeps target scope failures easy to understand while
+// preserving the underlying OS error for troubleshooting.
+func scopePathError(flag, path string, err error) error {
+	if os.IsNotExist(err) {
+		return fmt.Errorf("%s path does not exist: %s", flag, path)
+	}
+	return fmt.Errorf("%s path cannot be read: %s: %w", flag, path, err)
+}
+
 // loadFiles reads each discovered path and parses it relative to the configured
 // repository root.
 func loadFiles(root string, paths []string) ([]envfile.File, error) {
@@ -102,12 +163,12 @@ func loadFiles(root string, paths []string) ([]envfile.File, error) {
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read %q: %w", displayPath(root, path), err)
 		}
 
 		parsed, err := envfile.Parse(displayPath(root, path), data)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parse %q: %w", displayPath(root, path), err)
 		}
 		files = append(files, parsed)
 	}

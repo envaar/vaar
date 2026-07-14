@@ -205,6 +205,204 @@ func TestLintCommandAcceptsRepeatableSkipFlags(t *testing.T) {
 	}
 }
 
+func TestLintCommandTargetFileModeSupportsJsonAndOnly(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("ROOT=value\nROOT=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".env.staging"), []byte("STAGING=value\nSTAGING=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--json", "--only=duplicate-key", "--target=.env.staging")
+	if err == nil {
+		t.Fatal("expected findings error")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+
+	var payload struct {
+		Findings []lint.Finding `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got, want := len(payload.Findings), 1; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+	if got, want := payload.Findings[0].File, ".env.staging"; got != want {
+		t.Fatalf("unexpected finding file: got %q want %q", got, want)
+	}
+	if got, want := payload.Findings[0].Rule, "duplicate-key"; got != want {
+		t.Fatalf("unexpected finding rule: got %q want %q", got, want)
+	}
+}
+
+func TestLintCommandTargetDirModeSupportsFix(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("ROOT=value  \n\n\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	path := filepath.Join(root, "src", "app", ".env.example")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("APP=value  \n\n\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--fix", "--target-dir=src")
+	if err != nil {
+		t.Fatalf("expected lint --fix to succeed, got %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no output after fixing, got %q", stdout)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if string(got) != "APP=value\n" {
+		t.Fatalf("unexpected fixed content: got %q want %q", string(got), "APP=value\n")
+	}
+
+	rootGot, err := os.ReadFile(filepath.Join(root, ".env"))
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if string(rootGot) != "ROOT=value  \n\n\n" {
+		t.Fatalf("unexpected root file content after target-dir fix: %q", string(rootGot))
+	}
+}
+
+func TestLintCommandTargetDirModeSupportsSkip(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "src", "app", ".env.example")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("APP=value  \nAPP=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--json", "--skip=duplicate-key", "--target-dir=src")
+	if err == nil {
+		t.Fatal("expected findings error")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+
+	var payload struct {
+		Findings []lint.Finding `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got, want := len(payload.Findings), 1; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+	if got, want := payload.Findings[0].File, filepath.Join("src", "app", ".env.example"); got != want {
+		t.Fatalf("unexpected finding file: got %q want %q", got, want)
+	}
+	if got, want := payload.Findings[0].Rule, "trailing-whitespace"; got != want {
+		t.Fatalf("unexpected finding rule: got %q want %q", got, want)
+	}
+}
+
+func TestLintCommandTargetScopeErrors(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "src"), 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		args     []string
+		wantText string
+	}{
+		{
+			name:     "conflicting flags",
+			args:     []string{"--target=.env", "--target-dir=src"},
+			wantText: "--target and --target-dir cannot be used together",
+		},
+		{
+			name:     "missing target file",
+			args:     []string{"--target=missing.env"},
+			wantText: "--target path does not exist: missing.env",
+		},
+		{
+			name:     "target points to directory",
+			args:     []string{"--target=src"},
+			wantText: "--target must point to a file: src",
+		},
+		{
+			name:     "missing target dir",
+			args:     []string{"--target-dir=missing-dir"},
+			wantText: "--target-dir path does not exist: missing-dir",
+		},
+		{
+			name:     "target dir points to file",
+			args:     []string{"--target-dir=.env"},
+			wantText: "--target-dir must point to a directory: .env",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := runLintCommand(t, root, tc.args...)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if got := ExitCode(err); got != ExitInternal {
+				t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+			}
+			if !strings.Contains(err.Error(), tc.wantText) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestLintCommandTargetFileReportsUnreadablePath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission-denied fixtures are not portable on windows")
+	}
+
+	root := t.TempDir()
+	locked := filepath.Join(root, "locked")
+	if err := os.Mkdir(locked, 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(locked, ".env.staging"), []byte("KEY=value\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chmod(locked, 0o755); err != nil {
+			t.Errorf("restore permissions failed: %v", err)
+		}
+	})
+	if err := os.Chmod(locked, 0); err != nil {
+		t.Fatalf("chmod failed: %v", err)
+	}
+
+	_, err := runLintCommand(t, root, "--target=locked/.env.staging")
+	if err == nil {
+		t.Fatal("expected lint --target to fail")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	if !strings.Contains(err.Error(), "--target path cannot be read: locked/.env.staging") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestLintCommandDoesNotLeakSecretValues(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, ".env")
