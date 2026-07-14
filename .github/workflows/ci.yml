@@ -46,10 +46,20 @@ jobs:
           git diff --exit-code go.mod go.sum
 
       - name: Lint smoke test
-        run: go run ./cmd/vaar lint
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT INT TERM
+          rsync -a --exclude='.git' --exclude='bin' --exclude='dist' --exclude='.env' --exclude='examples' ./ "$tmpdir"/
+          cd "$tmpdir"
+          go run ./cmd/vaar lint
 
       - name: Lint smoke test with JSON output
-        run: go run ./cmd/vaar lint --json
+        run: |
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT INT TERM
+          rsync -a --exclude='.git' --exclude='bin' --exclude='dist' --exclude='.env' --exclude='examples' ./ "$tmpdir"/
+          cd "$tmpdir"
+          go run ./cmd/vaar lint --json
 
       - name: Fix smoke test
         run: |
