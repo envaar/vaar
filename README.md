@@ -267,3 +267,7 @@ Vaar is licensed under the Apache License 2.0. See [LICENSE](./LICENSE).
 ## Contact
 
 To contact the maintainers of this project, please reach out by sending a mail to [core@envaar.dev](mailto:core@envaar.dev).
+
+## Dummy
+
+This is a dummy test change.
