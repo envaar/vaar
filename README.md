@@ -257,7 +257,7 @@ Please read [Development Workflow](./CONTRIBUTING.md) to understand the typical 
 
 - If nothing was flagged, Vaar scanned the current working tree and did not find anything to report. Confirm you are in the repository/root you meant to scan.
 - To verify a downloaded binary, compare it against `vaar_checksums.txt` and then run `vaar --version` after extraction.
-- Exit codes are intentionally simple: `0` means no findings reported, `1` means findings were reported and `2` means the command failed before producing results.
+- Exit codes are intentionally simple: `0` means no findings remain after an optional `--fix` pass, `1` means findings remain and `2` means the command failed before producing results.
 
 ## Contributing
 

@@ -30,6 +30,23 @@ func TestTextRender(t *testing.T) {
 	}
 }
 
+func TestTextRenderMarksFixedFindings(t *testing.T) {
+	findings := []lint.Finding{{
+		Rule:     "trailing-whitespace",
+		Severity: lint.SeverityWarn,
+		File:     ".env",
+		Line:     1,
+		Message:  "line has trailing whitespace",
+		Fixed:    true,
+	}}
+
+	got := report.Text(findings)
+	want := "[fixed] warn trailing-whitespace .env:1 line has trailing whitespace\n"
+	if got != want {
+		t.Fatalf("unexpected fixed text output: got %q want %q", got, want)
+	}
+}
+
 func TestJSONRender(t *testing.T) {
 	findings := []lint.Finding{{
 		Rule:     "duplicate-key",

@@ -78,7 +78,7 @@ Use either --target or --target-dir, not both.`,
 				}
 			}
 
-			if len(result.Findings) > 0 {
+			if result.HasUnfixedFindings() {
 				return ExitError{Code: ExitFindings}
 			}
 

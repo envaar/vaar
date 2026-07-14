@@ -24,6 +24,9 @@ func Text(findings []lint.Finding) string {
 		if i > 0 {
 			builder.WriteByte('\n')
 		}
+		if finding.Fixed {
+			builder.WriteString("[fixed] ")
+		}
 		builder.WriteString(fmt.Sprintf("%s %s %s:%d %s", finding.Severity, finding.Rule, finding.File, finding.Line, finding.Message))
 	}
 	builder.WriteByte('\n')

@@ -31,9 +31,9 @@ func NewRunner(rules ...Rule) *Runner {
 	return &Runner{rules: copied}
 }
 
-// Run resolves the root, discovers dotenv files, applies safe fixes when
-// requested, parses the files and executes the selected rules in declaration
-// order.
+// Run resolves the root, discovers dotenv files and executes the selected
+// rules in declaration order. When fixes are requested, it reports the
+// original findings that disappeared as fixed and keeps the post-fix findings.
 func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 	selected, err := selectRules(r.rules, opts.OnlyRules, opts.SkipRules)
 	if err != nil {
@@ -54,36 +54,35 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
+	files, err := loadFiles(absRoot, paths)
+	if err != nil {
+		return Result{}, err
+	}
+
+	findings, err := r.runRules(ctx, absRoot, selected, files, opts)
+	if err != nil {
+		return Result{}, err
+	}
+
 	changed := false
 	if opts.Fix {
 		changed, err = ApplyFixes(paths)
 		if err != nil {
 			return Result{}, err
 		}
-	}
 
-	files, err := loadFiles(absRoot, paths)
-	if err != nil {
-		return Result{}, err
-	}
-
-	runCtx := Context{
-		Root:    absRoot,
-		Files:   files,
-		Options: opts,
-	}
-
-	findings := make([]Finding, 0, 16)
-	for _, rule := range selected {
-		if err := ctx.Err(); err != nil {
+		fixedFiles, err := loadFiles(absRoot, paths)
+		if err != nil {
 			return Result{}, err
 		}
 
-		ruleFindings, err := rule.Run(runCtx)
+		remaining, err := r.runRules(ctx, absRoot, selected, fixedFiles, opts)
 		if err != nil {
-			return Result{}, fmt.Errorf("%s: %w", rule.ID(), err)
+			return Result{}, err
 		}
-		findings = append(findings, ruleFindings...)
+
+		findings = markFixedFindings(findings, remaining)
+		files = fixedFiles
 	}
 
 	sortFindings(findings)
@@ -93,6 +92,63 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 		Files:    files,
 		Changed:  changed,
 	}, nil
+}
+
+func (r *Runner) runRules(ctx context.Context, root string, selected []Rule, files []envfile.File, opts Options) ([]Finding, error) {
+	runCtx := Context{Root: root, Files: files, Options: opts}
+	findings := make([]Finding, 0, 16)
+	for _, rule := range selected {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		ruleFindings, err := rule.Run(runCtx)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", rule.ID(), err)
+		}
+		findings = append(findings, ruleFindings...)
+	}
+
+	return findings, nil
+}
+
+type findingKey struct {
+	rule     string
+	severity Severity
+	file     string
+	line     int
+	message  string
+}
+
+func keyForFinding(finding Finding) findingKey {
+	return findingKey{
+		rule:     finding.Rule,
+		severity: finding.Severity,
+		file:     finding.File,
+		line:     finding.Line,
+		message:  finding.Message,
+	}
+}
+
+func markFixedFindings(original, remaining []Finding) []Finding {
+	remainingCounts := make(map[findingKey]int, len(remaining))
+	for _, finding := range remaining {
+		remainingCounts[keyForFinding(finding)]++
+	}
+
+	findings := make([]Finding, 0, len(original)+len(remaining))
+	for _, finding := range original {
+		key := keyForFinding(finding)
+		if remainingCounts[key] > 0 {
+			remainingCounts[key]--
+			continue
+		}
+
+		finding.Fixed = true
+		findings = append(findings, finding)
+	}
+
+	return append(findings, remaining...)
 }
 
 // discoverPaths resolves the active lint scope and keeps the default recursive

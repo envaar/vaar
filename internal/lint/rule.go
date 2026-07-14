@@ -22,7 +22,7 @@ type Options struct {
 	OnlyRules []string
 	// SkipRules removes the named rule IDs after selection.
 	SkipRules []string
-	// Fix enables the safe formatting pass before linting.
+	// Fix enables the safe formatting pass and reports findings repaired by it.
 	Fix bool
 }
 
@@ -52,4 +52,15 @@ type Result struct {
 	Files []envfile.File
 	// Changed reports whether ApplyFixes rewrote any file on disk.
 	Changed bool
+}
+
+// HasUnfixedFindings reports whether the final lint snapshot still contains
+// any findings after an optional fix pass.
+func (r Result) HasUnfixedFindings() bool {
+	for _, finding := range r.Findings {
+		if !finding.Fixed {
+			return true
+		}
+	}
+	return false
 }

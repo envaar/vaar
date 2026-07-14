@@ -17,4 +17,6 @@ type Finding struct {
 	Line int `json:"line"`
 	// Message explains the issue in user-facing language.
 	Message string `json:"message"`
+	// Fixed reports that --fix repaired this finding and it is no longer present.
+	Fixed bool `json:"fixed,omitempty"`
 }
