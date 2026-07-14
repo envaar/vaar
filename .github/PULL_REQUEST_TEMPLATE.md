@@ -83,7 +83,7 @@ Examples:
 
 ## Checklist
 
-- [ ] PR title follows Conventional Commits, including `hotfix` when used for a bug fix
+- [ ] PR title follows Conventional Commits
 - [ ] Code is formatted
 - [ ] Tests pass
 - [ ] Documentation is updated (if needed)
