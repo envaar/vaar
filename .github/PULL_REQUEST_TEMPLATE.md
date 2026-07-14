@@ -2,6 +2,7 @@
 Copyright © 2026 envaar
 SPDX-License-Identifier: Apache-2.0
 -->
+
 ## Summary
 
 Briefly describe the change.
@@ -21,6 +22,7 @@ Explain why this change is needed. Link an issue or discussion if applicable.
 - [ ] Build
 - [ ] Performance improvement/change
 - [ ] Internal refactor
+- [ ] Hotfix
 
 ## Breaking change
 
