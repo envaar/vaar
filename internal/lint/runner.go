@@ -116,7 +116,6 @@ type findingKey struct {
 	rule     string
 	severity Severity
 	file     string
-	line     int
 	message  string
 }
 
@@ -125,7 +124,6 @@ func keyForFinding(finding Finding) findingKey {
 		rule:     finding.Rule,
 		severity: finding.Severity,
 		file:     finding.File,
-		line:     finding.Line,
 		message:  finding.Message,
 	}
 }
