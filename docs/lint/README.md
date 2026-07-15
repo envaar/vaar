@@ -77,7 +77,7 @@ vaar lint --skip=trailing-whitespace --skip=extra-blank-line
 
 `vaar lint` uses simple exit codes that are useful for scripting:
 
-- `0` means no lint findings were reported (or some issues were fixed automatically and reported).
+- `0` means no lint findings were reported (if `--fix` made any fixes, they are reported)
 - `1` means lint findings were reported.
 - `2` means the command failed before producing results.
 
