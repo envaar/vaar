@@ -119,6 +119,65 @@ func TestLintCommandReportsFindingsInTextAndJSON(t *testing.T) {
 	})
 }
 
+func TestLintCommandRejectsOutputWithoutJSON(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("KEY=value\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--output=lint-report.json")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	if !strings.Contains(err.Error(), "--output requires --json") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+}
+
+func TestLintCommandWritesJSONOutputToFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--json", "--output=lint-report.json")
+	if err == nil {
+		t.Fatal("expected findings error")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "lint-report.json"))
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+
+	var payload struct {
+		Findings []lint.Finding `json:"findings"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got, want := len(payload.Findings), 1; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+	if got, want := payload.Findings[0].Rule, "duplicate-key"; got != want {
+		t.Fatalf("unexpected rule: got %q want %q", got, want)
+	}
+}
+
 func TestLintCommandFixesSafeFormatting(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, ".env")
