@@ -7,6 +7,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/envaar/vaar/internal/lint"
 	"github.com/envaar/vaar/internal/lint/rules"
@@ -21,6 +22,7 @@ func newLintCmd() *cobra.Command {
 	var selection lint.Options
 	var lintFix bool
 	var lintJSON bool
+	var lintOutput string
 
 	cmd := &cobra.Command{
 		Use:   "lint",
@@ -49,6 +51,9 @@ Use either --target or --target-dir, not both.`,
   vaar lint --target-dir=src`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if lintOutput != "" && !lintJSON {
+				return NewToolError("--output requires --json", nil)
+			}
 			runner := lint.NewRunner(rules.All()...)
 			result, err := runner.Run(cmd.Context(), lint.Options{
 				Root:      ".",
@@ -70,7 +75,13 @@ Use either --target or --target-dir, not both.`,
 				if err != nil {
 					return NewToolError("rendering JSON output failed", err)
 				}
-				fmt.Fprintln(cmd.OutOrStdout(), string(payload))
+				if lintOutput != "" {
+					if err := os.WriteFile(lintOutput, payload, 0644); err != nil {
+						return NewToolError(fmt.Sprintf("writing JSON output to %s failed", lintOutput), err)
+					}
+				} else {
+					fmt.Fprintln(cmd.OutOrStdout(), string(payload))
+				}
 			default:
 				text := report.Text(result.Findings)
 				if text != "" {
@@ -89,6 +100,7 @@ Use either --target or --target-dir, not both.`,
 	flags := cmd.Flags()
 	flags.BoolVar(&lintFix, "fix", false, "Apply safe formatting fixes before reporting")
 	flags.BoolVar(&lintJSON, "json", false, "Render findings as JSON")
+	flags.StringVarP(&lintOutput, "output", "o", "", "Write JSON output to a file instead of stdout")
 	flags.StringVar(&selection.Target, "target", "", "Lint only the specified file path.")
 	flags.StringVar(&selection.TargetDir, "target-dir", "", "Recursively lint dotenv files under the specified directory.")
 	flags.StringArrayVar(&selection.OnlyRules, "only", nil, "Run only the specified rule ID. Can be repeated.")
