@@ -175,6 +175,36 @@ func TestLintCommandFixUsesRemainingFindingsForExitStatus(t *testing.T) {
 	}
 }
 
+func TestLintCommandFixKeepsShiftedFindingsVisible(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("KEY=value  \n\n\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--fix")
+	if err == nil {
+		t.Fatal("expected the remaining duplicate-key finding to fail the command")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+	wantOutput := "[fixed] warn trailing-whitespace .env:1 line has trailing whitespace\n" +
+		"error duplicate-key .env:3 KEY is defined more than once\n" +
+		"[fixed] warn extra-blank-line .env:3 repeated blank line\n"
+	if stdout != wantOutput {
+		t.Fatalf("unexpected fix report: got %q want %q", stdout, wantOutput)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if string(got) != "KEY=value\n\nKEY=other\n" {
+		t.Fatalf("unexpected fixed content: got %q", string(got))
+	}
+}
+
 func TestLintCommandFixMarksFindingsInJSON(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, ".env")
@@ -320,9 +350,10 @@ func TestLintCommandTargetDirModeSupportsFix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected lint --fix to succeed, got %v", err)
 	}
-	wantOutput := "[fixed] warn trailing-whitespace src/app/.env.example:1 line has trailing whitespace\n" +
-		"[fixed] warn ending-blank-line src/app/.env.example:3 file must end with exactly one final newline\n" +
-		"[fixed] warn extra-blank-line src/app/.env.example:3 repeated blank line\n"
+	expectedPath := filepath.Join("src", "app", ".env.example")
+	wantOutput := "[fixed] warn trailing-whitespace " + expectedPath + ":1 line has trailing whitespace\n" +
+		"[fixed] warn ending-blank-line " + expectedPath + ":3 file must end with exactly one final newline\n" +
+		"[fixed] warn extra-blank-line " + expectedPath + ":3 repeated blank line\n"
 	if stdout != wantOutput {
 		t.Fatalf("unexpected fix report: got %q want %q", stdout, wantOutput)
 	}
