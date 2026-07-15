@@ -76,8 +76,42 @@ Use either --target or --target-dir, not both.`,
 					return NewToolError("rendering JSON output failed", err)
 				}
 				if lintOutput != "" {
-					if err := os.WriteFile(lintOutput, payload, 0644); err != nil {
+					data := append(payload, '\n')
+					dir := "."
+					for i := len(lintOutput) - 1; i >= 0; i-- {
+						if lintOutput[i] == '/' || lintOutput[i] == '\\' {
+							if i == 0 {
+								dir = lintOutput[:1]
+							} else {
+								dir = lintOutput[:i]
+							}
+							break
+						}
+					}
+
+					tmp, err := os.CreateTemp(dir, "vaar-lint-*.json")
+					if err != nil {
+						return NewToolError("creating JSON output file failed", err)
+					}
+					tmpName := tmp.Name()
+					defer os.Remove(tmpName)
+
+					if _, err := tmp.Write(data); err != nil {
+						_ = tmp.Close()
 						return NewToolError(fmt.Sprintf("writing JSON output to %s failed", lintOutput), err)
+					}
+					if err := tmp.Close(); err != nil {
+						return NewToolError(fmt.Sprintf("writing JSON output to %s failed", lintOutput), err)
+					}
+
+					if err := os.Rename(tmpName, lintOutput); err != nil {
+						// Windows rename does not replace existing files.
+						if removeErr := os.Remove(lintOutput); removeErr == nil {
+							err = os.Rename(tmpName, lintOutput)
+						}
+						if err != nil {
+							return NewToolError(fmt.Sprintf("writing JSON output to %s failed", lintOutput), err)
+						}
 					}
 				} else {
 					fmt.Fprintln(cmd.OutOrStdout(), string(payload))
@@ -100,7 +134,7 @@ Use either --target or --target-dir, not both.`,
 	flags := cmd.Flags()
 	flags.BoolVar(&lintFix, "fix", false, "Apply safe formatting fixes before reporting")
 	flags.BoolVar(&lintJSON, "json", false, "Render findings as JSON")
-	flags.StringVarP(&lintOutput, "output", "o", "", "Write JSON output to a file instead of stdout")
+	flags.StringVarP(&lintOutput, "output", "o", "", "Write JSON output to a file instead of stdout (requires --json)")
 	flags.StringVar(&selection.Target, "target", "", "Lint only the specified file path.")
 	flags.StringVar(&selection.TargetDir, "target-dir", "", "Recursively lint dotenv files under the specified directory.")
 	flags.StringArrayVar(&selection.OnlyRules, "only", nil, "Run only the specified rule ID. Can be repeated.")
