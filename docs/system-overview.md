@@ -31,14 +31,15 @@ Vaar keeps the command layer thin and pushes the real logic into a few focused p
 
 1. Resolve the repository root.
 2. Discover dotenv files in the tree.
-3. Select the requested rules.
-4. Parse each file and run the rules against the original snapshot.
-5. Apply safe formatting fixes when `--fix` is set.
-6. Re-parse and re-run the rules after fixing, marking disappeared findings as
-   fixed while retaining findings that remain.
-7. Sort findings into a stable order.
-8. Render text or JSON output.
-9. Exit based on the post-fix findings.
+3. Create an in-memory snapshot of each discovered `.env` file.
+4. Select the rules to apply.
+5. Parse each file and run the rules against the original snapshot.
+   1. If automatic safe fixing is enabled with `--fix`:
+      1. Apply the safe fixes.
+      2. Re-parse the files and re-run the rules after fixing, marking disappeared findings as fixed while retaining findings that remain.
+6. Sort findings into a stable order.
+7. Render text or JSON output.
+8. Exit based on the post-fix findings.
 
 The parser keeps the original bytes, line numbers, BOM state and line-ending information available to later stages. This ensures safe rewrites.
 

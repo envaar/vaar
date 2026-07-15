@@ -26,11 +26,7 @@ Lint also comes with additional flags such as:
 
 ### `--fix`
 
-Applies only the safe formatting fixes that can be made deterministically. Vaar
-reports the findings from the original file and marks findings that disappeared
-after the fix with `[fixed]`. It then reports any findings that remain in the
-post-fix file. The exit code is based on the remaining findings, so a file with
-only repaired findings exits successfully.
+Applies only the safe formatting fixes that can be made deterministically. Vaar reports the findings from the original file and marks findings that disappeared after the fix with `[fixed]`. It then reports any findings that remain in the post-fix file. The exit code is based on the remaining findings, so a file with only repaired findings exits successfully.
 
 ### `--json`
 
@@ -81,8 +77,8 @@ vaar lint --skip=trailing-whitespace --skip=extra-blank-line
 
 `vaar lint` uses simple exit codes that are useful for scripting:
 
-- `0` means no findings remain after an optional `--fix` pass.
-- `1` means one or more findings remain after an optional `--fix` pass.
+- `0` means no lint findings were reported.
+- `1` means lint findings were reported.
 - `2` means the command failed before producing results.
 
 The default output of `vaar lint` is plain text. Repaired findings are prefixed
