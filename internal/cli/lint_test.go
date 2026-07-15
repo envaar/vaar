@@ -119,6 +119,64 @@ func TestLintCommandReportsFindingsInTextAndJSON(t *testing.T) {
 	})
 }
 
+func TestLintCommandOutputRequiresJSON(t *testing.T) {
+	root := t.TempDir()
+	withWorkingDir(t, root)
+
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"lint", "--output=report.json"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	if !strings.Contains(err.Error(), "--output requires --json") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLintCommandWritesJSONOutputToFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	outputPath := filepath.Join(root, "report.json")
+	stdout, err := runLintCommand(t, root, "--json", "--output="+outputPath)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+	if stdout != "" {
+		t.Fatalf("expected stdout to be empty when --output is set, got %q", stdout)
+	}
+
+	gotFile, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if !strings.HasSuffix(string(gotFile), "\n") {
+		t.Fatalf("expected JSON output file to end with newline, got %q", string(gotFile))
+	}
+
+	stdoutJSON, err := runLintCommand(t, root, "--json")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+	if string(gotFile) != stdoutJSON {
+		t.Fatalf("unexpected file output: got %q want %q", string(gotFile), stdoutJSON)
+	}
+}
+
 func TestLintCommandFixesSafeFormatting(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, ".env")

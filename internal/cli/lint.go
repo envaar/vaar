@@ -7,6 +7,8 @@ package cli
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/envaar/vaar/internal/lint"
 	"github.com/envaar/vaar/internal/lint/rules"
@@ -21,6 +23,7 @@ func newLintCmd() *cobra.Command {
 	var selection lint.Options
 	var lintFix bool
 	var lintJSON bool
+	var lintOutput string
 
 	cmd := &cobra.Command{
 		Use:   "lint",
@@ -49,6 +52,10 @@ Use either --target or --target-dir, not both.`,
   vaar lint --target-dir=src`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if lintOutput != "" && !lintJSON {
+				return NewToolError("validating flags", fmt.Errorf("--output requires --json"))
+			}
+
 			runner := lint.NewRunner(rules.All()...)
 			result, err := runner.Run(cmd.Context(), lint.Options{
 				Root:      ".",
@@ -70,7 +77,13 @@ Use either --target or --target-dir, not both.`,
 				if err != nil {
 					return NewToolError("rendering JSON output failed", err)
 				}
-				fmt.Fprintln(cmd.OutOrStdout(), string(payload))
+				if lintOutput != "" {
+					if err := writeJSONOutputFile(lintOutput, payload); err != nil {
+						return NewToolError("writing JSON output file failed", err)
+					}
+				} else {
+					fmt.Fprintln(cmd.OutOrStdout(), string(payload))
+				}
 			default:
 				text := report.Text(result.Findings)
 				if text != "" {
@@ -89,6 +102,7 @@ Use either --target or --target-dir, not both.`,
 	flags := cmd.Flags()
 	flags.BoolVar(&lintFix, "fix", false, "Apply safe formatting fixes before reporting")
 	flags.BoolVar(&lintJSON, "json", false, "Render findings as JSON")
+	flags.StringVar(&lintOutput, "output", "", "Write JSON findings to a file (requires --json)")
 	flags.StringVar(&selection.Target, "target", "", "Lint only the specified file path.")
 	flags.StringVar(&selection.TargetDir, "target-dir", "", "Recursively lint dotenv files under the specified directory.")
 	flags.StringArrayVar(&selection.OnlyRules, "only", nil, "Run only the specified rule ID. Can be repeated.")
@@ -97,4 +111,26 @@ Use either --target or --target-dir, not both.`,
 	registerLintFlagCompletions(cmd)
 
 	return cmd
+}
+
+func writeJSONOutputFile(path string, payload []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+
+	tmpPath := tmp.Name()
+	defer func() {
+		_ = os.Remove(tmpPath)
+	}()
+
+	if _, err := tmp.Write(append(payload, '\n')); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpPath, path)
 }
