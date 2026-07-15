@@ -77,13 +77,11 @@ vaar lint --skip=trailing-whitespace --skip=extra-blank-line
 
 `vaar lint` uses simple exit codes that are useful for scripting:
 
-- `0` means no lint findings were reported.
+- `0` means no lint findings were reported (or some issues were fixed automatically and reported).
 - `1` means lint findings were reported.
 - `2` means the command failed before producing results.
 
-The default output of `vaar lint` is plain text. Repaired findings are prefixed
-with `[fixed]`. Use `--json` when you want machine-readable findings for
-automation purposes; repaired findings include `"fixed": true`.
+The default output of `vaar lint` is plain text. Repaired findings are prefixed with `[fixed]`. Use `--json` when you want machine-readable findings for automation purposes; repaired findings include `"fixed": true`.
 
 ## Rule Reference
 
