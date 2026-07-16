@@ -97,8 +97,10 @@ vaar version dev
 ```
 
 A source build reports the version as `dev`; release binaries report their tag.
-The examples below invoke `vaar` directly — put `./bin/vaar` on your `PATH` (or
-use an installed release) and run them from the repository you want to check.
+The examples below invoke `vaar` directly — add the Vaar clone's `bin`
+directory to your `PATH` (for example, run `export PATH="$PWD/bin:$PATH"` from
+the Vaar clone) or use an installed release, then run them from the repository
+you want to check.
 
 ### Your First Lint Run
 
