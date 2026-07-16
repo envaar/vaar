@@ -37,7 +37,7 @@ The command supports safe fixes, JSON output, JSON file export through
 Use --only to narrow the selected rules, --skip to remove rules after
 selection, --target to lint one file and --target-dir to discover files under
 one directory. --output writes JSON to a file instead of stdout and requires
---json. Use --list-rules to print every registered rule with its description 
+--json. Use --list-rules to print every registered rule with its description
 without running anything:
 
   vaar lint --only=duplicate-key
