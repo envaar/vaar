@@ -19,6 +19,9 @@ type constantCaseRule struct{}
 func NewConstantCase() lint.Rule { return constantCaseRule{} }
 
 func (constantCaseRule) ID() string { return "constant-case" }
+func (constantCaseRule) Description() string {
+	return "warns about portable keys that are not CONSTANT_CASE"
+}
 
 func (constantCaseRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
