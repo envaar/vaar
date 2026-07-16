@@ -64,11 +64,26 @@ func TestConstantCaseAllowsDigitUnderscoreKey(t *testing.T) {
 }
 
 // Structurally invalid keys are reported by invalid-key-name, not by
-// constant-case: each rule stays in its own lane.
+// constant-case: each rule stays in its own lane. Asserting only that
+// constant-case stays silent would also pass if nothing flagged these keys at
+// all, so pin both halves of the boundary: constant-case ignores them AND
+// invalid-key-name reports them.
 func TestConstantCaseLeavesInvalidKeysToInvalidKeyName(t *testing.T) {
+	invalidKeys := []byte("api-key=value\n1api=value\n")
+
 	runRuleTest(t, ruleTestCase{
 		rule:      deterministic.NewConstantCase(),
-		input:     []byte("api-key=value\n1api=value\n"),
+		input:     invalidKeys,
 		wantCount: 0,
+	})
+
+	runRuleTest(t, ruleTestCase{
+		rule:            deterministic.NewInvalidKeyName(),
+		input:           invalidKeys,
+		wantCount:       2,
+		wantLine:        1,
+		wantRule:        "invalid-key-name",
+		wantSeverity:    "error",
+		wantMessagePart: "api-key is not a portable env key name",
 	})
 }

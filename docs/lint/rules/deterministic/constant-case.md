@@ -8,8 +8,13 @@ Warns about portable keys that are not CONSTANT_CASE.
 ## What it catches
 
 Keys that match the portable env-key pattern but contain lowercase ASCII
-letters. The message suggests the CONSTANT_CASE form, for example
+letters. The message suggests an uppercased form of the key, for example
 `database_url should use CONSTANT_CASE: DATABASE_URL`.
+
+The suggestion is the key with its ASCII lowercase letters uppercased, and
+nothing else — word separators are never inserted, so `apiToken` suggests
+`APITOKEN` rather than `API_TOKEN`. Where a key needs new underscores to read
+well, treat the suggestion as a starting point rather than the final name.
 
 > [!NOTE]
 > Keys with structural problems such as hyphens, dots, spaces or leading
