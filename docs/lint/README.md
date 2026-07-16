@@ -21,6 +21,7 @@ Lint also comes with additional flags such as:
 - `vaar lint --skip=[rule-name]`
 - `vaar lint --target=.env.staging`
 - `vaar lint --target-dir=src`
+- `vaar lint --list-rules`
 
 ## Lint Flags
 
@@ -71,6 +72,20 @@ Examples:
 ```bash
 vaar lint --skip=trailing-whitespace
 vaar lint --skip=trailing-whitespace --skip=extra-blank-line
+```
+
+### `--list-rules`
+
+Prints every registered rule in alphabetical order with its canonical name and a concise description, then exits successfully. This is an informational mode: it does not discover dotenv files, run rules or require a repository, so it works from any directory.
+
+The output uses NAME and DESCRIPTION columns. A FIXABLE column is not included because the rule registry does not currently expose fixability metadata.
+
+`--list-rules` cannot be combined with execution or output flags: `--only`, `--skip`, `--fix`, `--target`, `--target-dir`, `--output` or `--json`; doing so returns a usage error naming the conflicting flag.
+
+Example:
+
+```bash
+vaar lint --list-rules
 ```
 
 ## Output and Exit Codes

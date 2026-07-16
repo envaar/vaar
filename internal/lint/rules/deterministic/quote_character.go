@@ -17,6 +17,9 @@ type quoteCharacterRule struct{}
 func NewQuoteCharacter() lint.Rule { return quoteCharacterRule{} }
 
 func (quoteCharacterRule) ID() string { return "quote-character" }
+func (quoteCharacterRule) Description() string {
+	return "flags values with unbalanced quotes or stray text after a closing quote"
+}
 
 func (quoteCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

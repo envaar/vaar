@@ -24,7 +24,8 @@ type countingRule struct {
 	calls *int
 }
 
-func (r countingRule) ID() string { return r.id }
+func (r countingRule) ID() string          { return r.id }
+func (r countingRule) Description() string { return "counting rule for tests" }
 
 func (r countingRule) Run(lint.Context) ([]lint.Finding, error) {
 	*r.calls++
