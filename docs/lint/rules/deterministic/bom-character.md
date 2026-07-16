@@ -35,3 +35,22 @@ Remove the BOM.
 ```text
 KEY=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=bom-character
+```
+
+Bad Example Produces:
+
+```text
+warn bom-character .env:1 file starts with a UTF-8 BOM
+```
+
+> [!NOTE]
+> `\ufeff` above stands for the actual BOM bytes (`EF BB BF`) at the start of the
+> file. A file containing the literal six characters `\ufeff` is not a BOM and
+> does not produce this finding.

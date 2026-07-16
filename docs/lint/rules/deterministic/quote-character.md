@@ -32,3 +32,17 @@ KEY="value
 ```dotenv
 KEY="value"
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=quote-character
+```
+
+Bad Example Produces:
+
+```text
+error quote-character .env:1 value has unbalanced quotes
+```

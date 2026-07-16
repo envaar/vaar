@@ -32,3 +32,17 @@ KEY:value
 ```dotenv
 KEY=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=incorrect-delimiter
+```
+
+Bad Example Produces:
+
+```text
+error incorrect-delimiter .env:1 KEY uses ':' instead of '='
+```

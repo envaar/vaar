@@ -36,3 +36,17 @@ bad-key=value
 ```dotenv
 BAD_KEY=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=invalid-key-name
+```
+
+Bad Example Produces:
+
+```text
+error invalid-key-name .env:1 bad-key is not a portable env key name
+```

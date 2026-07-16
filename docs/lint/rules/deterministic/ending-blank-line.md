@@ -36,3 +36,17 @@ KEY=value
 ```dotenv
 KEY=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=ending-blank-line
+```
+
+Bad Example Produces:
+
+```text
+warn ending-blank-line .env:2 file must end with exactly one final newline
+```
