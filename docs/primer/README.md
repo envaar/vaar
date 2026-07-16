@@ -3,7 +3,7 @@ SPDX-License-Identifier: Apache-2.0 -->
 
 # Vaar Primer
 
-A fast, hands-on tour of Vaar for new developers. Read this end to end and you
+A fast, hands-on tour of Vaar for new developers. Read this end-to-end and you
 will know what Vaar is, how a lint run flows through the codebase and how to run
 it yourself. It should take about ten minutes.
 
@@ -16,7 +16,7 @@ for package boundaries, [Usage](../usage.md) for the command map and
 ### What Vaar Is
 
 Vaar is a repo-aware linter for environment variables, shipped as a single Go
-binary (`cmd/vaar`). The current release focuses on **deterministic dotenv
+binary built from the `cmd/vaar` entrypoint. The current release focuses on **deterministic dotenv
 hygiene**: it discovers `.env` files in a repository, checks each one against a
 built-in rule set, reports findings with file and line numbers and can apply
 safe formatting fixes.
