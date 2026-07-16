@@ -151,7 +151,7 @@ func TestLintCommandWritesJSONOutputToFile(t *testing.T) {
 		t.Fatalf("write failed: %v", err)
 	}
 
-	stdout, err := runLintCommand(t, root, "--json", "--output=lint-report.json")
+	stdout, stderr, err := runLintCommandWithStreams(t, root, "--json", "--output=lint-report.json")
 	if err == nil {
 		t.Fatal("expected findings error")
 	}
@@ -160,6 +160,10 @@ func TestLintCommandWritesJSONOutputToFile(t *testing.T) {
 	}
 	if stdout != "" {
 		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+	wantStderr := "Successfully flagged 1 finding and wrote to lint-report.json\n"
+	if stderr != wantStderr {
+		t.Fatalf("unexpected stderr: got %q want %q", stderr, wantStderr)
 	}
 
 	data, err := os.ReadFile(filepath.Join(root, "lint-report.json"))
@@ -661,15 +665,23 @@ func withWorkingDir(t *testing.T, dir string) {
 func runLintCommand(t *testing.T, root string, args ...string) (string, error) {
 	t.Helper()
 
+	stdout, _, err := runLintCommandWithStreams(t, root, args...)
+	return stdout, err
+}
+
+func runLintCommandWithStreams(t *testing.T, root string, args ...string) (string, string, error) {
+	t.Helper()
+
 	withWorkingDir(t, root)
 
-	var stdout bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	cmd := newRootCmd()
 	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
 	cmd.SetArgs(append([]string{"lint"}, args...))
 
 	err := cmd.Execute()
-	return stdout.String(), err
+	return stdout.String(), stderr.String(), err
 }
 
 func TestLintCommandRejectsOutputOverlappingInput(t *testing.T) {
@@ -761,7 +773,7 @@ func TestLintCommandWritesJSONOutputToDistinctPath(t *testing.T) {
 		t.Fatalf("write failed: %v", err)
 	}
 
-	stdout, err := runLintCommand(t, root, "--json", "--output=lint-report.json")
+	stdout, stderr, err := runLintCommandWithStreams(t, root, "--json", "--output=lint-report.json")
 	if err == nil {
 		t.Fatal("expected findings error")
 	}
@@ -770,6 +782,10 @@ func TestLintCommandWritesJSONOutputToDistinctPath(t *testing.T) {
 	}
 	if stdout != "" {
 		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+	wantStderr := "Successfully flagged 1 finding and wrote to lint-report.json\n"
+	if stderr != wantStderr {
+		t.Fatalf("unexpected stderr: got %q want %q", stderr, wantStderr)
 	}
 
 	data, err := os.ReadFile(filepath.Join(root, "lint-report.json"))
@@ -945,4 +961,61 @@ func slicesEqual(a, b []string) bool {
 		}
 	}
 	return true
+  
+func TestLintCommandConfirmsOutputWriteWithNoFindings(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, stderr, err := runLintCommandWithStreams(t, root, "--json", "--output=lint-report.json")
+	if err != nil {
+		t.Fatalf("expected lint to succeed, got %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+	wantStderr := "Successfully flagged no findings and wrote to lint-report.json\n"
+	if stderr != wantStderr {
+		t.Fatalf("unexpected stderr: got %q want %q", stderr, wantStderr)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "lint-report.json"))
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	var payload struct {
+		Findings []lint.Finding `json:"findings"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got, want := len(payload.Findings), 0; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+}
+
+func TestLintCommandReportsOutputWriteFailure(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, stderr, err := runLintCommandWithStreams(t, root, "--json", "--output=missing/dir/lint-report.json")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+	if strings.Contains(stderr, "Successfully flagged") {
+		t.Fatalf("expected no success message on write failure, got %q", stderr)
+	}
+
+	if _, statErr := os.Stat(filepath.Join(root, "missing", "dir", "lint-report.json")); !os.IsNotExist(statErr) {
+		t.Fatalf("expected output file not to be created, got stat error %v", statErr)
+	}
 }
