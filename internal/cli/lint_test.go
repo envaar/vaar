@@ -828,27 +828,34 @@ func TestLintCommandListsRulesAlphabetically(t *testing.T) {
 		t.Fatalf("expected %d lines (header + %d rules), got %d", len(expected)+1, len(expected), len(lines))
 	}
 
-	gotIDs := make([]string, 0, len(expected))
-	for _, line := range lines[1:] {
-		fields := strings.Fields(line)
-		if len(fields) < 1 {
-			t.Fatalf("unexpected empty rule line: %q", line)
-		}
-		gotIDs = append(gotIDs, fields[0])
-	}
-
-	if !slicesEqual(gotIDs, wantIDs) {
-		t.Fatalf("unexpected rule order or content:\ngot  %v\nwant %v", gotIDs, wantIDs)
-	}
-
+	descriptions := make(map[string]string, len(expected))
 	for _, rule := range expected {
 		description := strings.TrimSpace(rule.Description())
 		if description == "" {
 			t.Fatalf("rule %q has an empty description", rule.ID())
 		}
-		if !strings.Contains(output, description) {
-			t.Fatalf("expected description for %q to appear in output: %q", rule.ID(), description)
+		descriptions[rule.ID()] = description
+	}
+
+	gotIDs := make([]string, 0, len(expected))
+	for _, line := range lines[1:] {
+		id, description, found := strings.Cut(strings.TrimSpace(line), " ")
+		if !found {
+			t.Fatalf("expected rule line to carry a description: %q", line)
 		}
+		gotIDs = append(gotIDs, id)
+
+		want, known := descriptions[id]
+		if !known {
+			t.Fatalf("unexpected rule %q in output", id)
+		}
+		if got := strings.TrimSpace(description); got != want {
+			t.Fatalf("wrong description on the %q line:\ngot  %q\nwant %q", id, got, want)
+		}
+	}
+
+	if !slicesEqual(gotIDs, wantIDs) {
+		t.Fatalf("unexpected rule order or content:\ngot  %v\nwant %v", gotIDs, wantIDs)
 	}
 }
 
