@@ -243,7 +243,7 @@ Those boundaries are intentional. Vaar should stay focused before it grows broad
 
 ## Documentation
 
-Please refer to [/docs](/docs/) for all necessary documentation. If you are unsure where to start, try reading [Usage](/docs/usage.md).
+Please refer to [/docs](/docs/) for all necessary documentation. If you are unsure where to start, try reading [Usage](/docs/usage.md). New developers can take the [Primer](/docs/primer/README.md) for a fast, hands-on tour of how Vaar works.
 
 ## System Overview and Repository Layout
 
