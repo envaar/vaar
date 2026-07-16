@@ -19,6 +19,9 @@ type incorrectDelimiterRule struct{}
 func NewIncorrectDelimiter() lint.Rule { return incorrectDelimiterRule{} }
 
 func (incorrectDelimiterRule) ID() string { return "incorrect-delimiter" }
+func (incorrectDelimiterRule) Description() string {
+	return "flags ':' where dotenv assignments should use '='"
+}
 
 func (incorrectDelimiterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

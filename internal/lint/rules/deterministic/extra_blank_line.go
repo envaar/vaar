@@ -13,7 +13,8 @@ type extraBlankLineRule struct{}
 // file because they add vertical noise without changing meaning.
 func NewExtraBlankLine() lint.Rule { return extraBlankLineRule{} }
 
-func (extraBlankLineRule) ID() string { return "extra-blank-line" }
+func (extraBlankLineRule) ID() string          { return "extra-blank-line" }
+func (extraBlankLineRule) Description() string { return "flags repeated blank lines inside a file" }
 
 func (extraBlankLineRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

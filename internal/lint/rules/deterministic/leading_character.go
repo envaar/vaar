@@ -13,7 +13,8 @@ type leadingCharacterRule struct{}
 // indentation, which often hides accidental formatting drift.
 func NewLeadingCharacter() lint.Rule { return leadingCharacterRule{} }
 
-func (leadingCharacterRule) ID() string { return "leading-character" }
+func (leadingCharacterRule) ID() string          { return "leading-character" }
+func (leadingCharacterRule) Description() string { return "warns when a line starts with indentation" }
 
 func (leadingCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

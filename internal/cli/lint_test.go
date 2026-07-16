@@ -14,10 +14,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/envaar/vaar/internal/lint"
+	"github.com/envaar/vaar/internal/lint/rules"
 )
 
 func TestLintCommandUnknownRuleReturnsExitCode2(t *testing.T) {
@@ -149,7 +151,7 @@ func TestLintCommandWritesJSONOutputToFile(t *testing.T) {
 		t.Fatalf("write failed: %v", err)
 	}
 
-	stdout, err := runLintCommand(t, root, "--json", "--output=lint-report.json")
+	stdout, stderr, err := runLintCommandWithStreams(t, root, "--json", "--output=lint-report.json")
 	if err == nil {
 		t.Fatal("expected findings error")
 	}
@@ -158,6 +160,10 @@ func TestLintCommandWritesJSONOutputToFile(t *testing.T) {
 	}
 	if stdout != "" {
 		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+	wantStderr := "Successfully flagged 1 finding and wrote to lint-report.json\n"
+	if stderr != wantStderr {
+		t.Fatalf("unexpected stderr: got %q want %q", stderr, wantStderr)
 	}
 
 	data, err := os.ReadFile(filepath.Join(root, "lint-report.json"))
@@ -659,15 +665,23 @@ func withWorkingDir(t *testing.T, dir string) {
 func runLintCommand(t *testing.T, root string, args ...string) (string, error) {
 	t.Helper()
 
+	stdout, _, err := runLintCommandWithStreams(t, root, args...)
+	return stdout, err
+}
+
+func runLintCommandWithStreams(t *testing.T, root string, args ...string) (string, string, error) {
+	t.Helper()
+
 	withWorkingDir(t, root)
 
-	var stdout bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	cmd := newRootCmd()
 	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
 	cmd.SetArgs(append([]string{"lint"}, args...))
 
 	err := cmd.Execute()
-	return stdout.String(), err
+	return stdout.String(), stderr.String(), err
 }
 
 func TestLintCommandRejectsOutputOverlappingInput(t *testing.T) {
@@ -759,7 +773,7 @@ func TestLintCommandWritesJSONOutputToDistinctPath(t *testing.T) {
 		t.Fatalf("write failed: %v", err)
 	}
 
-	stdout, err := runLintCommand(t, root, "--json", "--output=lint-report.json")
+	stdout, stderr, err := runLintCommandWithStreams(t, root, "--json", "--output=lint-report.json")
 	if err == nil {
 		t.Fatal("expected findings error")
 	}
@@ -768,6 +782,10 @@ func TestLintCommandWritesJSONOutputToDistinctPath(t *testing.T) {
 	}
 	if stdout != "" {
 		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+	wantStderr := "Successfully flagged 1 finding and wrote to lint-report.json\n"
+	if stderr != wantStderr {
+		t.Fatalf("unexpected stderr: got %q want %q", stderr, wantStderr)
 	}
 
 	data, err := os.ReadFile(filepath.Join(root, "lint-report.json"))
@@ -790,5 +808,215 @@ func TestLintCommandWritesJSONOutputToDistinctPath(t *testing.T) {
 	}
 	if string(after) != "KEY=value\nKEY=other\n" {
 		t.Fatalf("input file was modified: %q", after)
+	}
+}
+
+func TestLintCommandListsRulesAlphabetically(t *testing.T) {
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"lint", "--list-rules"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("expected --list-rules to succeed, got %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.HasPrefix(output, "NAME") {
+		t.Fatalf("expected output to start with NAME header, got %q", output)
+	}
+	header, _, _ := strings.Cut(output, "\n")
+	if !strings.Contains(header, "DESCRIPTION") {
+		t.Fatalf("expected header to contain DESCRIPTION column, got %q", header)
+	}
+
+	expected := rules.All()
+	wantIDs := make([]string, len(expected))
+	for i, rule := range expected {
+		wantIDs[i] = rule.ID()
+	}
+	sort.Strings(wantIDs)
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	if len(lines) != len(expected)+1 {
+		t.Fatalf("expected %d lines (header + %d rules), got %d", len(expected)+1, len(expected), len(lines))
+	}
+
+	descriptions := make(map[string]string, len(expected))
+	for _, rule := range expected {
+		description := strings.TrimSpace(rule.Description())
+		if description == "" {
+			t.Fatalf("rule %q has an empty description", rule.ID())
+		}
+		descriptions[rule.ID()] = description
+	}
+
+	gotIDs := make([]string, 0, len(expected))
+	for _, line := range lines[1:] {
+		id, description, found := strings.Cut(strings.TrimSpace(line), " ")
+		if !found {
+			t.Fatalf("expected rule line to carry a description: %q", line)
+		}
+		gotIDs = append(gotIDs, id)
+
+		want, known := descriptions[id]
+		if !known {
+			t.Fatalf("unexpected rule %q in output", id)
+		}
+		if got := strings.TrimSpace(description); got != want {
+			t.Fatalf("wrong description on the %q line:\ngot  %q\nwant %q", id, got, want)
+		}
+	}
+
+	if !slicesEqual(gotIDs, wantIDs) {
+		t.Fatalf("unexpected rule order or content:\ngot  %v\nwant %v", gotIDs, wantIDs)
+	}
+}
+
+func TestLintCommandListRulesWorksOutsideRepository(t *testing.T) {
+	root := t.TempDir()
+	withWorkingDir(t, root)
+
+	stdout, err := runLintCommand(t, root, "--list-rules")
+	if err != nil {
+		t.Fatalf("expected --list-rules to succeed outside a repository, got %v", err)
+	}
+	if !strings.Contains(stdout, "duplicate-key") {
+		t.Fatalf("expected rule list to contain duplicate-key, got %q", stdout)
+	}
+}
+
+func TestLintCommandListRulesRejectsExecutionFlags(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "only",
+			args: []string{"--list-rules", "--only=duplicate-key"},
+			want: "--list-rules cannot be combined with --only",
+		},
+		{
+			name: "skip",
+			args: []string{"--list-rules", "--skip=trailing-whitespace"},
+			want: "--list-rules cannot be combined with --skip",
+		},
+		{
+			name: "fix",
+			args: []string{"--list-rules", "--fix"},
+			want: "--list-rules cannot be combined with --fix",
+		},
+		{
+			name: "json",
+			args: []string{"--list-rules", "--json"},
+			want: "--list-rules cannot be combined with --json",
+		},
+		{
+			name: "output",
+			args: []string{"--list-rules", "--output=rules.json"},
+			want: "--list-rules cannot be combined with --output",
+		},
+		{
+			name: "target",
+			args: []string{"--list-rules", "--target=.env"},
+			want: "--list-rules cannot be combined with --target",
+		},
+		{
+			name: "target-dir",
+			args: []string{"--list-rules", "--target-dir=src"},
+			want: "--list-rules cannot be combined with --target-dir",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			stdout, err := runLintCommand(t, root, tc.args...)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if got := ExitCode(err); got != ExitInternal {
+				t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("unexpected error: got %v, want to contain %q", err, tc.want)
+			}
+			if stdout != "" {
+				t.Fatalf("expected no stdout output, got %q", stdout)
+			}
+		})
+	}
+}
+
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestLintCommandConfirmsOutputWriteWithNoFindings(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, stderr, err := runLintCommandWithStreams(t, root, "--json", "--output=lint-report.json")
+	if err != nil {
+		t.Fatalf("expected lint to succeed, got %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+	wantStderr := "Successfully flagged no findings and wrote to lint-report.json\n"
+	if stderr != wantStderr {
+		t.Fatalf("unexpected stderr: got %q want %q", stderr, wantStderr)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "lint-report.json"))
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	var payload struct {
+		Findings []lint.Finding `json:"findings"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got, want := len(payload.Findings), 0; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+}
+
+func TestLintCommandReportsOutputWriteFailure(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, stderr, err := runLintCommandWithStreams(t, root, "--json", "--output=missing/dir/lint-report.json")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+	if strings.Contains(stderr, "Successfully flagged") {
+		t.Fatalf("expected no success message on write failure, got %q", stderr)
+	}
+
+	if _, statErr := os.Stat(filepath.Join(root, "missing", "dir", "lint-report.json")); !os.IsNotExist(statErr) {
+		t.Fatalf("expected output file not to be created, got stat error %v", statErr)
 	}
 }

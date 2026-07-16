@@ -14,6 +14,9 @@ type endingBlankLineRule struct{}
 func NewEndingBlankLine() lint.Rule { return endingBlankLineRule{} }
 
 func (endingBlankLineRule) ID() string { return "ending-blank-line" }
+func (endingBlankLineRule) Description() string {
+	return "flags files that do not end with one clean trailing newline"
+}
 
 func (endingBlankLineRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

@@ -71,18 +71,20 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 			return Result{}, err
 		}
 
-		fixedFiles, err := loadFiles(absRoot, paths)
-		if err != nil {
-			return Result{}, err
-		}
+		if changed {
+			fixedFiles, err := loadFiles(absRoot, paths)
+			if err != nil {
+				return Result{}, err
+			}
 
-		remaining, err := r.runRules(ctx, absRoot, selected, fixedFiles, opts)
-		if err != nil {
-			return Result{}, err
-		}
+			remaining, err := r.runRules(ctx, absRoot, selected, fixedFiles, opts)
+			if err != nil {
+				return Result{}, err
+			}
 
-		findings = markFixedFindings(findings, remaining)
-		files = fixedFiles
+			findings = markFixedFindings(findings, remaining)
+			files = fixedFiles
+		}
 	}
 
 	sortFindings(findings)

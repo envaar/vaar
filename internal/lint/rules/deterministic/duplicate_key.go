@@ -19,6 +19,9 @@ type duplicateKeyRule struct{}
 func NewDuplicateKey() lint.Rule { return duplicateKeyRule{} }
 
 func (duplicateKeyRule) ID() string { return "duplicate-key" }
+func (duplicateKeyRule) Description() string {
+	return "flags the second and later assignment of the same key in one file"
+}
 
 func (duplicateKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

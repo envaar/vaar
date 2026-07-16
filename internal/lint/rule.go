@@ -41,6 +41,7 @@ type Context struct {
 // mutating shared state.
 type Rule interface {
 	ID() string
+	Description() string
 	Run(Context) ([]Finding, error)
 }
 
