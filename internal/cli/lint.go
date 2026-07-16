@@ -18,8 +18,8 @@ import (
 )
 
 // newLintCmd builds the lint subcommand, wires the built-in rule set and
-// exposes the flag surface for safe fixes, JSON output, rule selection and
-// explicit discovery scopes.
+// exposes the flag surface for safe fixes, JSON output, JSON file export,
+// rule selection and explicit discovery scopes.
 func newLintCmd() *cobra.Command {
 	var selection lint.Options
 	var lintFix bool
@@ -32,14 +32,17 @@ func newLintCmd() *cobra.Command {
 		Short: "Run environment lint checks",
 		Long: `Run Vaar's lint rules against discovered dotenv files in the current repository.
 
-The command supports safe fixes, JSON output, repeatable rule selection flags
-and explicit target scopes. Use --only to narrow the selected rules, --skip to
-remove rules after selection, --target to lint one file and --target-dir to
-discover files under one directory. Use --list-rules to print every registered
-rule with its description without running anything:
+The command supports safe fixes, JSON output, JSON file export through
+--output or -o, repeatable rule selection flags and explicit target scopes.
+Use --only to narrow the selected rules, --skip to remove rules after
+selection, --target to lint one file and --target-dir to discover files under
+one directory. --output writes JSON to a file instead of stdout and requires
+--json. Use --list-rules to print every registered rule with its description
+without running anything:
 
   vaar lint --only=duplicate-key
   vaar lint --only=duplicate-key --only=invalid-key-name
+  vaar lint --json --output=lint-report.json
   vaar lint --skip=trailing-whitespace
   vaar lint --skip=trailing-whitespace --skip=extra-blank-line
   vaar lint --target=.env.staging
@@ -49,6 +52,8 @@ rule with its description without running anything:
 Use either --target or --target-dir, not both.`,
 		Example: `  vaar lint
   vaar lint --json
+  vaar lint --json --output=lint-report.json
+  vaar lint --json -o lint-report.json
   vaar lint --fix
   vaar lint --only=duplicate-key --only=invalid-key-name
   vaar lint --skip=trailing-whitespace --skip=extra-blank-line
