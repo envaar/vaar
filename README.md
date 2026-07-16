@@ -113,6 +113,14 @@ Use the `--json` flag output for a portable export in the form of a JSON:
 vaar lint --json
 ```
 
+To write that JSON report to a file instead of `stdout`, use:
+
+```bash
+vaar lint --json --output=report.json
+```
+
+This writes the JSON report to a file. For the full file-output behavior, see [docs/lint/README.md](./docs/lint/README.md).
+
 To apply safe, non destructive formatting fixes, use:
 
 ```bash
