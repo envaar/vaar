@@ -7,7 +7,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/envaar/vaar/internal/lint"
 	"github.com/envaar/vaar/internal/lint/rules"
@@ -65,6 +64,9 @@ Use either --target or --target-dir, not both.`,
 			}
 
 			if lintOutput != "" {
+				if err := validateOutputDestination(lintOutput); err != nil {
+					return err
+				}
 				if err := lint.ValidateOutputPath(opts, lintOutput); err != nil {
 					return NewToolError(err.Error(), nil)
 				}
@@ -85,42 +87,8 @@ Use either --target or --target-dir, not both.`,
 					return NewToolError("rendering JSON output failed", err)
 				}
 				if lintOutput != "" {
-					data := append(payload, '\n')
-					dir := "."
-					for i := len(lintOutput) - 1; i >= 0; i-- {
-						if lintOutput[i] == '/' || lintOutput[i] == '\\' {
-							if i == 0 {
-								dir = lintOutput[:1]
-							} else {
-								dir = lintOutput[:i]
-							}
-							break
-						}
-					}
-
-					tmp, err := os.CreateTemp(dir, "vaar-lint-*.json")
-					if err != nil {
-						return NewToolError("creating JSON output file failed", err)
-					}
-					tmpName := tmp.Name()
-					defer os.Remove(tmpName)
-
-					if _, err := tmp.Write(data); err != nil {
-						_ = tmp.Close()
-						return NewToolError(fmt.Sprintf("writing JSON output to %s failed", lintOutput), err)
-					}
-					if err := tmp.Close(); err != nil {
-						return NewToolError(fmt.Sprintf("writing JSON output to %s failed", lintOutput), err)
-					}
-
-					if err := os.Rename(tmpName, lintOutput); err != nil {
-						// Windows rename does not replace existing files.
-						if removeErr := os.Remove(lintOutput); removeErr == nil {
-							err = os.Rename(tmpName, lintOutput)
-						}
-						if err != nil {
-							return NewToolError(fmt.Sprintf("writing JSON output to %s failed", lintOutput), err)
-						}
+					if err := writeJSONOutput(lintOutput, append(payload, '\n')); err != nil {
+						return err
 					}
 				} else {
 					fmt.Fprintln(cmd.OutOrStdout(), string(payload))

@@ -792,3 +792,140 @@ func TestLintCommandWritesJSONOutputToDistinctPath(t *testing.T) {
 		t.Fatalf("input file was modified: %q", after)
 	}
 }
+
+func TestLintCommandRejectsOutputThatIsExistingDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	victim := filepath.Join(root, "victim")
+	if err := os.Mkdir(victim, 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--json", "--output=victim")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	if !strings.Contains(err.Error(), "the path is a directory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+
+	// The directory must still exist as a directory and no output must be written.
+	info, statErr := os.Stat(victim)
+	if statErr != nil {
+		t.Fatalf("victim directory was destroyed: %v", statErr)
+	}
+	if !info.IsDir() {
+		t.Fatalf("victim is no longer a directory")
+	}
+	entries, err := os.ReadDir(victim)
+	if err != nil {
+		t.Fatalf("readdir failed: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected victim/ to remain empty, got %d entries", len(entries))
+	}
+}
+
+func TestLintCommandRejectsOutputWithTrailingSeparator(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	_, err := runLintCommand(t, root, "--json", "--output=reports/")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	if !strings.Contains(err.Error(), "the path is a directory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLintCommandWritesJSONOutputToSubdirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "reports"), 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+
+	_, err := runLintCommand(t, root, "--json", "--output=reports/lint.json")
+	if err == nil {
+		t.Fatal("expected findings error")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "reports", "lint.json"))
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	var payload struct {
+		Findings []lint.Finding `json:"findings"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got, want := len(payload.Findings), 1; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+
+	// The temporary file must be co-located with the destination and cleaned up,
+	// leaving only the report in the subdirectory.
+	entries, err := os.ReadDir(filepath.Join(root, "reports"))
+	if err != nil {
+		t.Fatalf("readdir failed: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected only the output file in reports/, got %d entries", len(entries))
+	}
+}
+
+func TestLintCommandReplacesExistingOutputFileWithoutDestroyingIt(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	outPath := filepath.Join(root, "lint.json")
+	if err := os.WriteFile(outPath, []byte("STALE-REPORT"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	_, err := runLintCommand(t, root, "--json", "--output=lint.json")
+	if err == nil {
+		t.Fatal("expected findings error")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("existing output file was destroyed: %v", err)
+	}
+	if strings.Contains(string(data), "STALE-REPORT") {
+		t.Fatalf("expected stale output to be replaced, got %q", string(data))
+	}
+	var payload struct {
+		Findings []lint.Finding `json:"findings"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if len(payload.Findings) != 1 {
+		t.Fatalf("unexpected finding count: %d", len(payload.Findings))
+	}
+}
