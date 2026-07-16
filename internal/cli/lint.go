@@ -122,6 +122,15 @@ Use either --target or --target-dir, not both.`,
 							return NewToolError(fmt.Sprintf("writing JSON output to %s failed", lintOutput), err)
 						}
 					}
+
+					count := len(result.Findings)
+					if count == 0 {
+						fmt.Fprintf(cmd.ErrOrStderr(), "Successfully flagged no findings and wrote to %s\n", lintOutput)
+					} else if count == 1 {
+						fmt.Fprintf(cmd.ErrOrStderr(), "Successfully flagged 1 finding and wrote to %s\n", lintOutput)
+					} else {
+						fmt.Fprintf(cmd.ErrOrStderr(), "Successfully flagged %d findings and wrote to %s\n", count, lintOutput)
+					}
 				} else {
 					fmt.Fprintln(cmd.OutOrStdout(), string(payload))
 				}
