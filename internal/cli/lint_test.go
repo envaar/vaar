@@ -842,8 +842,12 @@ func TestLintCommandListsRulesAlphabetically(t *testing.T) {
 	}
 
 	for _, rule := range expected {
-		if !strings.Contains(output, rule.Description()) {
-			t.Fatalf("expected description for %q to appear in output: %q", rule.ID(), rule.Description())
+		description := strings.TrimSpace(rule.Description())
+		if description == "" {
+			t.Fatalf("rule %q has an empty description", rule.ID())
+		}
+		if !strings.Contains(output, description) {
+			t.Fatalf("expected description for %q to appear in output: %q", rule.ID(), description)
 		}
 	}
 }
