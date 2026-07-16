@@ -11,7 +11,7 @@ For installation, verification and the fastest first run, start with [README](..
 | Command                                                                          | What it does                            | Read more                                          |
 | -------------------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------------- |
 | `vaar lint`                                                                      | Runs the repository lint checks.        | [Lint guide](./lint/README.md)                     |
-| `vaar lint --fix` / `vaar lint --json` / `vaar lint --output` / `vaar lint --only` / `vaar lint --skip` / `vaar lint --target` / `vaar lint --target-dir` | Adjusts lint output, file export, rule selection and scope. | [Lint guide](./lint/README.md)                     |
+| `vaar lint --fix` / `vaar lint --json` / `vaar lint --output` / `vaar lint --only` / `vaar lint --skip` / `vaar lint --target` / `vaar lint --target-dir` | Adjusts lint output, JSON file export, rule selection and scope. | [Lint guide](./lint/README.md)                     |
 | `vaar --help` / `vaar help`                                                      | Shows the root help screen.             | [Help guide](./help/README.md)                     |
 | `vaar lint --help` / `vaar help lint`                                            | Shows the lint help screen.             | [Lint help guide](./help/help-lint.md)             |
 | `vaar completion <shell>`                                                        | Prints a shell completion script.       | [Completion guide](./completion/README.md)         |
