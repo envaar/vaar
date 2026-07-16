@@ -10,6 +10,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -667,4 +668,127 @@ func runLintCommand(t *testing.T, root string, args ...string) (string, error) {
 
 	err := cmd.Execute()
 	return stdout.String(), err
+}
+
+func TestLintCommandRejectsOutputOverlappingInput(t *testing.T) {
+	root := t.TempDir()
+	envPath := filepath.Join(root, ".env")
+	if err := os.WriteFile(envPath, []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	srcAppPath := filepath.Join(root, "src", "app", ".env")
+	if err := os.MkdirAll(filepath.Dir(srcAppPath), 0o755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+	if err := os.WriteFile(srcAppPath, []byte("APP=value\nAPP=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	cases := []struct {
+		name     string
+		args     []string
+		wantPath string
+	}{
+		{
+			name:     "output equals explicit target",
+			args:     []string{"--target=.env", "--json", "--output=.env"},
+			wantPath: ".env",
+		},
+		{
+			name:     "output equals discovered file",
+			args:     []string{"--json", "--output=.env"},
+			wantPath: ".env",
+		},
+		{
+			name:     "output equals file under target-dir",
+			args:     []string{"--target-dir=src", "--json", "--output=src/app/.env"},
+			wantPath: "src/app/.env",
+		},
+		{
+			name:     "relative output matches absolute target",
+			args:     []string{"--target=" + envPath, "--json", "--output=.env"},
+			wantPath: ".env",
+		},
+		{
+			name:     "output via parent traversal matches discovered file",
+			args:     []string{"--json", "--output=src/../.env"},
+			wantPath: "src/../.env",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			original, err := os.ReadFile(envPath)
+			if err != nil {
+				t.Fatalf("read failed: %v", err)
+			}
+
+			stdout, err := runLintCommand(t, root, tc.args...)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if got := ExitCode(err); got != ExitInternal {
+				t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+			}
+			if !strings.Contains(err.Error(), fmt.Sprintf("cannot write lint output to %q", tc.wantPath)) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !strings.Contains(err.Error(), "the path is also a lint input file") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if stdout != "" {
+				t.Fatalf("expected no stdout output, got %q", stdout)
+			}
+
+			after, err := os.ReadFile(envPath)
+			if err != nil {
+				t.Fatalf("read failed: %v", err)
+			}
+			if !bytes.Equal(after, original) {
+				t.Fatalf("input file was modified: got %q want %q", after, original)
+			}
+		})
+	}
+}
+
+func TestLintCommandWritesJSONOutputToDistinctPath(t *testing.T) {
+	root := t.TempDir()
+	envPath := filepath.Join(root, ".env")
+	if err := os.WriteFile(envPath, []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--json", "--output=lint-report.json")
+	if err == nil {
+		t.Fatal("expected findings error")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "lint-report.json"))
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	var payload struct {
+		Findings []lint.Finding `json:"findings"`
+	}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got, want := len(payload.Findings), 1; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+
+	after, err := os.ReadFile(envPath)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if string(after) != "KEY=value\nKEY=other\n" {
+		t.Fatalf("input file was modified: %q", after)
+	}
 }

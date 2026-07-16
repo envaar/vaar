@@ -54,15 +54,24 @@ Use either --target or --target-dir, not both.`,
 			if lintOutput != "" && !lintJSON {
 				return NewToolError("--output requires --json", nil)
 			}
-			runner := lint.NewRunner(rules.All()...)
-			result, err := runner.Run(cmd.Context(), lint.Options{
+
+			opts := lint.Options{
 				Root:      ".",
 				Target:    selection.Target,
 				TargetDir: selection.TargetDir,
 				OnlyRules: selection.OnlyRules,
 				SkipRules: selection.SkipRules,
 				Fix:       lintFix,
-			})
+			}
+
+			if lintOutput != "" {
+				if err := lint.ValidateOutputPath(opts, lintOutput); err != nil {
+					return NewToolError(err.Error(), nil)
+				}
+			}
+
+			runner := lint.NewRunner(rules.All()...)
+			result, err := runner.Run(cmd.Context(), opts)
 			if err != nil {
 				return NewToolError("lint failed", err)
 			}
