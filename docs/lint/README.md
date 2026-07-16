@@ -80,7 +80,7 @@ Prints every registered rule in alphabetical order with its canonical name and a
 
 The output uses NAME and DESCRIPTION columns. A FIXABLE column is not included because the rule registry does not currently expose fixability metadata.
 
-`--list-rules` cannot be combined with execution flags such as `--only`, `--skip`, `--fix`, `--target`, `--target-dir` or `--output`; doing so returns a usage error naming the conflicting flag.
+`--list-rules` cannot be combined with execution or output flags: `--only`, `--skip`, `--fix`, `--target`, `--target-dir`, `--output` or `--json`; doing so returns a usage error naming the conflicting flag.
 
 Example:
 

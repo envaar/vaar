@@ -811,6 +811,10 @@ func TestLintCommandListsRulesAlphabetically(t *testing.T) {
 	if !strings.HasPrefix(output, "NAME") {
 		t.Fatalf("expected output to start with NAME header, got %q", output)
 	}
+	header, _, _ := strings.Cut(output, "\n")
+	if !strings.Contains(header, "DESCRIPTION") {
+		t.Fatalf("expected header to contain DESCRIPTION column, got %q", header)
+	}
 
 	expected := rules.All()
 	wantIDs := make([]string, len(expected))
@@ -885,7 +889,7 @@ func TestLintCommandListRulesRejectsExecutionFlags(t *testing.T) {
 		},
 		{
 			name: "output",
-			args: []string{"--list-rules", "--json", "--output=rules.json"},
+			args: []string{"--list-rules", "--output=rules.json"},
 			want: "--list-rules cannot be combined with --output",
 		},
 		{

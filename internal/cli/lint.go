@@ -57,15 +57,15 @@ Use either --target or --target-dir, not both.`,
   vaar lint --list-rules`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if lintOutput != "" && !lintJSON {
-				return NewToolError("--output requires --json", nil)
-			}
-
 			if lintListRules {
 				if conflict := firstListRulesConflict(selection, lintFix, lintJSON, lintOutput); conflict != "" {
 					return NewToolError(fmt.Sprintf("--list-rules cannot be combined with %s", conflict), nil)
 				}
 				return writeRuleList(cmd.OutOrStdout(), rules.All())
+			}
+
+			if lintOutput != "" && !lintJSON {
+				return NewToolError("--output requires --json", nil)
 			}
 
 			opts := lint.Options{
@@ -212,9 +212,13 @@ func writeRuleList(w io.Writer, all []lint.Rule) error {
 		}
 	}
 
-	fmt.Fprintf(w, "%-*s  DESCRIPTION\n", nameWidth, "NAME")
+	if _, err := fmt.Fprintf(w, "%-*s  DESCRIPTION\n", nameWidth, "NAME"); err != nil {
+		return err
+	}
 	for _, rule := range sorted {
-		fmt.Fprintf(w, "%-*s  %s\n", nameWidth, rule.ID(), rule.Description())
+		if _, err := fmt.Fprintf(w, "%-*s  %s\n", nameWidth, rule.ID(), rule.Description()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
