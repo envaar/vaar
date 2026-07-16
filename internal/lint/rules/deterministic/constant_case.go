@@ -47,7 +47,7 @@ func (constantCaseRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 }
 
 // constantCaseKey uppercases ASCII lowercase letters and leaves every other
-// byte untouched.
+// rune untouched.
 func constantCaseKey(key string) string {
 	return strings.Map(func(r rune) rune {
 		if r >= 'a' && r <= 'z' {
