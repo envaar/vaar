@@ -961,7 +961,8 @@ func slicesEqual(a, b []string) bool {
 		}
 	}
 	return true
-  
+}
+
 func TestLintCommandConfirmsOutputWriteWithNoFindings(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("KEY=value\n"), 0o644); err != nil {
