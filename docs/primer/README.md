@@ -97,6 +97,8 @@ vaar version dev
 ```
 
 A source build reports the version as `dev`; release binaries report their tag.
+The examples below invoke `vaar` directly — put `./bin/vaar` on your `PATH` (or
+use an installed release) and run them from the repository you want to check.
 
 ### Your First Lint Run
 
@@ -115,8 +117,9 @@ warn extra-blank-line .env:8 repeated blank line
 
 ### Reading The Output
 
-Every line follows `<severity> <rule> <file>:<line> <message>`. A clean run
-prints nothing. Exit codes are script-friendly:
+Every line follows `<severity> <rule> <file>:<line> <message>`; during `--fix`
+runs, repaired findings additionally carry a `[fixed]` prefix (see below). A
+clean run prints nothing. Exit codes are script-friendly:
 
 - `0` — no findings remain (fixes made during `--fix` are still reported).
 - `1` — findings remain.
