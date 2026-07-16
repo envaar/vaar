@@ -17,6 +17,9 @@ type valueWithoutKeyRule struct{}
 func NewValueWithoutKey() lint.Rule { return valueWithoutKeyRule{} }
 
 func (valueWithoutKeyRule) ID() string { return "value-without-key" }
+func (valueWithoutKeyRule) Description() string {
+	return "flags values or delimiters that appear without a key"
+}
 
 func (valueWithoutKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

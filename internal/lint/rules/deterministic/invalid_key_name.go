@@ -18,6 +18,9 @@ type invalidKeyNameRule struct{}
 func NewInvalidKeyName() lint.Rule { return invalidKeyNameRule{} }
 
 func (invalidKeyNameRule) ID() string { return "invalid-key-name" }
+func (invalidKeyNameRule) Description() string {
+	return "flags keys outside the portable env-var format"
+}
 
 func (invalidKeyNameRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

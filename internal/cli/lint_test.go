@@ -14,10 +14,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/envaar/vaar/internal/lint"
+	"github.com/envaar/vaar/internal/lint/rules"
 )
 
 func TestLintCommandUnknownRuleReturnsExitCode2(t *testing.T) {
@@ -791,4 +793,141 @@ func TestLintCommandWritesJSONOutputToDistinctPath(t *testing.T) {
 	if string(after) != "KEY=value\nKEY=other\n" {
 		t.Fatalf("input file was modified: %q", after)
 	}
+}
+
+func TestLintCommandListsRulesAlphabetically(t *testing.T) {
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"lint", "--list-rules"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("expected --list-rules to succeed, got %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.HasPrefix(output, "NAME") {
+		t.Fatalf("expected output to start with NAME header, got %q", output)
+	}
+
+	expected := rules.All()
+	wantIDs := make([]string, len(expected))
+	for i, rule := range expected {
+		wantIDs[i] = rule.ID()
+	}
+	sort.Strings(wantIDs)
+
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	if len(lines) != len(expected)+1 {
+		t.Fatalf("expected %d lines (header + %d rules), got %d", len(expected)+1, len(expected), len(lines))
+	}
+
+	gotIDs := make([]string, 0, len(expected))
+	for _, line := range lines[1:] {
+		fields := strings.Fields(line)
+		if len(fields) < 1 {
+			t.Fatalf("unexpected empty rule line: %q", line)
+		}
+		gotIDs = append(gotIDs, fields[0])
+	}
+
+	if !slicesEqual(gotIDs, wantIDs) {
+		t.Fatalf("unexpected rule order or content:\ngot  %v\nwant %v", gotIDs, wantIDs)
+	}
+
+	for _, rule := range expected {
+		if !strings.Contains(output, rule.Description()) {
+			t.Fatalf("expected description for %q to appear in output: %q", rule.ID(), rule.Description())
+		}
+	}
+}
+
+func TestLintCommandListRulesWorksOutsideRepository(t *testing.T) {
+	root := t.TempDir()
+	withWorkingDir(t, root)
+
+	stdout, err := runLintCommand(t, root, "--list-rules")
+	if err != nil {
+		t.Fatalf("expected --list-rules to succeed outside a repository, got %v", err)
+	}
+	if !strings.Contains(stdout, "duplicate-key") {
+		t.Fatalf("expected rule list to contain duplicate-key, got %q", stdout)
+	}
+}
+
+func TestLintCommandListRulesRejectsExecutionFlags(t *testing.T) {
+	cases := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "only",
+			args: []string{"--list-rules", "--only=duplicate-key"},
+			want: "--list-rules cannot be combined with --only",
+		},
+		{
+			name: "skip",
+			args: []string{"--list-rules", "--skip=trailing-whitespace"},
+			want: "--list-rules cannot be combined with --skip",
+		},
+		{
+			name: "fix",
+			args: []string{"--list-rules", "--fix"},
+			want: "--list-rules cannot be combined with --fix",
+		},
+		{
+			name: "json",
+			args: []string{"--list-rules", "--json"},
+			want: "--list-rules cannot be combined with --json",
+		},
+		{
+			name: "output",
+			args: []string{"--list-rules", "--json", "--output=rules.json"},
+			want: "--list-rules cannot be combined with --output",
+		},
+		{
+			name: "target",
+			args: []string{"--list-rules", "--target=.env"},
+			want: "--list-rules cannot be combined with --target",
+		},
+		{
+			name: "target-dir",
+			args: []string{"--list-rules", "--target-dir=src"},
+			want: "--list-rules cannot be combined with --target-dir",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			stdout, err := runLintCommand(t, root, tc.args...)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if got := ExitCode(err); got != ExitInternal {
+				t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("unexpected error: got %v, want to contain %q", err, tc.want)
+			}
+			if stdout != "" {
+				t.Fatalf("expected no stdout output, got %q", stdout)
+			}
+		})
+	}
+}
+
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

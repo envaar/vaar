@@ -19,6 +19,9 @@ type keyWithoutValueRule struct{}
 func NewKeyWithoutValue() lint.Rule { return keyWithoutValueRule{} }
 
 func (keyWithoutValueRule) ID() string { return "key-without-value" }
+func (keyWithoutValueRule) Description() string {
+	return "flags bare keys and empty assignments that leave a variable unset"
+}
 
 func (keyWithoutValueRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

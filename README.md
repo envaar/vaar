@@ -138,6 +138,12 @@ vaar lint --target=.env.staging
 vaar lint --target-dir=src
 ```
 
+To list every registered rule with its description:
+
+```bash
+vaar lint --list-rules
+```
+
 For the lint-specific command reference and rule catalog, see [docs/lint/README.md](./docs/lint/README.md).
 
 ### Examples
