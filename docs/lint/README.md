@@ -31,6 +31,8 @@ Lint also comes with additional flags such as:
 
 Applies only the safe formatting fixes that can be made deterministically. Vaar reports the findings from the original file and marks findings that disappeared after the fix with `[fixed]`. It then reports any findings that remain in the post-fix file. The exit code is based on the remaining findings, so a file with only repaired findings exits successfully.
 
+`--fix` respects `--only` and `--skip`: it composes only the fix halves of the selected rules, so `vaar lint --fix --only=trailing-whitespace` repairs trailing whitespace while leaving blank-line and other formatting untouched, and `vaar lint --fix --skip=trailing-whitespace` repairs everything except trailing whitespace. Plain `vaar lint --fix` composes every rule's fix. Selecting a rule with no fix half (its `FIXABLE` column reads `no`) repairs nothing and is not an error; that rule's finding simply remains in the report.
+
 ### `--json`
 
 Renders findings as a JSON output. To be used when a CI job, editor integration or wrapper script needs structured output instead of text.
@@ -77,6 +79,7 @@ Useful for selecting a specific rule or a specific list of rules to run.
 - The flag can be repeated to specify each rule to be checked.
 - Unknown rule names are rejected before linting starts.
 - Listing the same rule more than once does not run it multiple times.
+- Combined with `--fix`, the fix pass is scoped to the selected rules.
 
 Examples:
 
@@ -91,6 +94,7 @@ Useful for selecting a specific rule or a specific list of rules to be skipped.
 
 - The flag can be repeated to specify each rule to be skipped.
 - Unknown rule names are rejected before linting starts.
+- Combined with `--fix`, the fix pass composes every rule's fix except the skipped ones.
 
 Examples:
 

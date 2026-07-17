@@ -345,6 +345,148 @@ func TestLintCommandFixMarksFindingsInJSON(t *testing.T) {
 	}
 }
 
+func TestLintCommandFixOnlyScopesToSelectedRule(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	// This file trips both trailing-whitespace (line 1) and extra-blank-line
+	// (line 3). Scoping --fix to trailing-whitespace must repair only the
+	// whitespace and leave the double blank line untouched.
+	if err := os.WriteFile(path, []byte("KEY=value  \n\n\nNEXT=2\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--fix", "--only=trailing-whitespace")
+	if err != nil {
+		t.Fatalf("expected scoped --fix to succeed, got %v", err)
+	}
+
+	wantOutput := "[fixed] warn trailing-whitespace .env:1 line has trailing whitespace\n"
+	if stdout != wantOutput {
+		t.Fatalf("unexpected fix report: got %q want %q", stdout, wantOutput)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	// Only the trailing whitespace is gone; the double blank line survives.
+	if want := "KEY=value\n\n\nNEXT=2\n"; string(got) != want {
+		t.Fatalf("scoped fix repaired the wrong rules: got %q want %q", string(got), want)
+	}
+}
+
+func TestLintCommandFixOnlyTrailingWhitespaceOnCRLFFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	// A CRLF file with trailing whitespace on line 1. Scoping --fix to
+	// trailing-whitespace must strip the spaces that sit ahead of the CR while
+	// leaving the CRLF line endings intact, since the line-ending rule is not
+	// selected. Before the CR-aware trim this repaired nothing: the trailing
+	// whitespace hid ahead of a surviving CR.
+	if err := os.WriteFile(path, []byte("KEY=value  \r\nX=1\r\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--fix", "--only=trailing-whitespace")
+	if err != nil {
+		t.Fatalf("expected scoped --fix to succeed, got %v", err)
+	}
+
+	wantOutput := "[fixed] warn trailing-whitespace .env:1 line has trailing whitespace\n"
+	if stdout != wantOutput {
+		t.Fatalf("unexpected fix report: got %q want %q", stdout, wantOutput)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	// The trailing whitespace is gone; the CRLF endings are preserved.
+	if want := "KEY=value\r\nX=1\r\n"; string(got) != want {
+		t.Fatalf("scoped CRLF fix produced wrong bytes: got %q want %q", string(got), want)
+	}
+}
+
+func TestLintCommandFixSkipExcludesSelectedRule(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("KEY=value  \n\n\nNEXT=2\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--fix", "--skip=trailing-whitespace")
+	if err != nil {
+		t.Fatalf("expected scoped --fix to succeed, got %v", err)
+	}
+
+	wantOutput := "[fixed] warn extra-blank-line .env:3 repeated blank line\n"
+	if stdout != wantOutput {
+		t.Fatalf("unexpected fix report: got %q want %q", stdout, wantOutput)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	// The double blank line collapses, but the trailing whitespace survives
+	// because trailing-whitespace was skipped.
+	if want := "KEY=value  \n\nNEXT=2\n"; string(got) != want {
+		t.Fatalf("skipped fix repaired the wrong rules: got %q want %q", string(got), want)
+	}
+}
+
+func TestLintCommandFixPlainRepairsEverything(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("KEY=value  \n\n\nNEXT=2\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	if _, err := runLintCommand(t, root, "--fix"); err != nil {
+		t.Fatalf("expected plain --fix to succeed, got %v", err)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	// Plain --fix composes every rule, so both defects are repaired.
+	if want := "KEY=value\n\nNEXT=2\n"; string(got) != want {
+		t.Fatalf("plain fix output changed: got %q want %q", string(got), want)
+	}
+}
+
+func TestLintCommandFixOnlyUnfixableRuleIsNotAnError(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	// duplicate-key has no fix half. Scoping --fix to it repairs nothing and is
+	// not rejected; the finding simply remains and drives the exit code.
+	stdout, err := runLintCommand(t, root, "--fix", "--only=duplicate-key")
+	if err == nil {
+		t.Fatal("expected the unrepaired duplicate-key finding to fail the command")
+	}
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+
+	wantOutput := "error duplicate-key .env:2 KEY is defined more than once\n"
+	if stdout != wantOutput {
+		t.Fatalf("unexpected report: got %q want %q", stdout, wantOutput)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if want := "KEY=value\nKEY=other\n"; string(got) != want {
+		t.Fatalf("selecting an unfixable rule must not rewrite the file: got %q want %q", string(got), want)
+	}
+}
+
 func TestLintCommandAcceptsRepeatableOnlyFlags(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, ".env")

@@ -127,6 +127,8 @@ To apply safe, non destructive formatting fixes, use:
 vaar lint --fix
 ```
 
+`--fix` can be scoped with `--only` and `--skip`: it applies only the fix halves of the selected rules, so `vaar lint --fix --only=trailing-whitespace` repairs trailing whitespace and leaves everything else untouched. Selecting a rule that has no fix (its `FIXABLE` column reads `no`) repairs nothing and is not an error; the finding simply remains in the report.
+
 To lint only using specific rules:
 
 ```bash
