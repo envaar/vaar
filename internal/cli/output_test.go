@@ -8,6 +8,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -57,5 +58,46 @@ func TestWriteJSONOutputLeavesDestinationIntactOnFailure(t *testing.T) {
 			names = append(names, e.Name())
 		}
 		t.Fatalf("expected only dest/ to remain, got %v", names)
+	}
+}
+
+func TestWriteJSONOutputReplacesReadonlyFileOnWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("windows-only overwrite semantics")
+	}
+
+	root := t.TempDir()
+	dest := filepath.Join(root, "lint.json")
+	if err := os.WriteFile(dest, []byte("STALE-REPORT"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	if err := os.Chmod(dest, 0o444); err != nil {
+		t.Fatalf("chmod failed: %v", err)
+	}
+	defer func() {
+		_ = os.Chmod(dest, 0o644)
+	}()
+
+	payload := []byte("{\"findings\":[]}\n")
+	if err := writeJSONOutput(dest, payload); err != nil {
+		t.Fatalf("writeJSONOutput failed: %v", err)
+	}
+
+	data, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if string(data) != string(payload) {
+		t.Fatalf("unexpected output: got %q want %q", string(data), string(payload))
+	}
+}
+
+func TestOutputTempDirUsesWindowsDriveRoot(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("windows-only path handling")
+	}
+
+	if got, want := outputTempDir(`C:\out.json`), `C:\`; got != want {
+		t.Fatalf("unexpected temp dir: got %q want %q", got, want)
 	}
 }

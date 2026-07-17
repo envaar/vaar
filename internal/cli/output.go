@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // validateOutputDestination rejects --output values that name a directory: a
@@ -17,21 +18,22 @@ import (
 // onto the directory and then removes the directory, destroying it.
 func validateOutputDestination(output string) error {
 	if hasTrailingSeparator(output) {
-		return NewToolError(fmt.Sprintf("cannot write lint output to %q: the path is a directory", output), nil)
+		return outputDirectoryError(output)
 	}
 	if info, err := os.Stat(output); err == nil && info.IsDir() {
-		return NewToolError(fmt.Sprintf("cannot write lint output to %q: the path is a directory", output), nil)
+		return outputDirectoryError(output)
 	}
 	return nil
 }
 
 // writeJSONOutput writes data to path via a temporary file in the destination
 // directory followed by an atomic rename. filepath.Dir keeps the temporary file
-// on the same volume as the destination so the rename stays atomic, and the
-// destination is never removed before the replacement is in place, so a failed
-// or interrupted write cannot destroy an existing file.
+// on the same volume as the destination so the rename stays atomic. If the
+// destination is a regular file on Windows and a direct rename fails, the file
+// is removed and the rename is retried; existing directories are rejected and
+// never removed.
 func writeJSONOutput(path string, data []byte) error {
-	dir := filepath.Dir(path)
+	dir := outputTempDir(path)
 
 	tmp, err := os.CreateTemp(dir, "vaar-lint-*.json")
 	if err != nil {
@@ -47,18 +49,10 @@ func writeJSONOutput(path string, data []byte) error {
 		return NewToolError(fmt.Sprintf("writing JSON output to %s failed", path), err)
 	}
 	if err := tmp.Close(); err != nil {
-		return NewToolError(fmt.Sprintf("writing JSON output to %s failed", path), err)
+		return outputWriteError(path, err)
 	}
 
-	// os.Rename replaces an existing destination on all supported platforms
-	// (Windows maps to MoveFileEx with MOVEFILE_REPLACE_EXISTING). On failure we
-	// surface the error and leave any existing file untouched rather than
-	// removing it first and risking a state with neither file present.
-	if err := os.Rename(tmpName, path); err != nil {
-		return NewToolError(fmt.Sprintf("writing JSON output to %s failed", path), err)
-	}
-
-	return nil
+	return finalizeJSONOutput(tmpName, path)
 }
 
 // hasTrailingSeparator reports whether path ends with a path separator, which
@@ -69,4 +63,41 @@ func hasTrailingSeparator(path string) bool {
 	}
 	last := path[len(path)-1]
 	return last == '/' || last == os.PathSeparator
+}
+
+// outputTempDir keeps temporary JSON output alongside the final destination so
+// the eventual rename stays on the same volume.
+func outputTempDir(path string) string {
+	return filepath.Dir(path)
+}
+
+func finalizeJSONOutput(tmpName, path string) error {
+	renameErr := os.Rename(tmpName, path)
+	if renameErr == nil {
+		return nil
+	}
+
+	info, statErr := os.Stat(path)
+	if statErr == nil && info.IsDir() {
+		return outputDirectoryError(path)
+	}
+	if runtime.GOOS == "windows" && statErr == nil {
+		if err := os.Remove(path); err != nil {
+			return outputWriteError(path, err)
+		}
+		if err := os.Rename(tmpName, path); err != nil {
+			return outputWriteError(path, err)
+		}
+		return nil
+	}
+
+	return outputWriteError(path, renameErr)
+}
+
+func outputDirectoryError(path string) error {
+	return NewToolError(fmt.Sprintf("cannot write lint output to %q: the path is a directory", path), nil)
+}
+
+func outputWriteError(path string, err error) error {
+	return NewToolError(fmt.Sprintf("writing JSON output to %s failed", path), err)
 }
