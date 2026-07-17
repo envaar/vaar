@@ -11,7 +11,7 @@ For installation, verification and the fastest first run, start with [README](..
 | Command                                                                          | What it does                            | Read more                                          |
 | -------------------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------------- |
 | `vaar lint`                                                                      | Runs the repository lint checks.        | [Lint guide](./lint/README.md)                     |
-| `vaar lint --fix` / `vaar lint --json` / `vaar lint --only` / `vaar lint --skip` / `vaar lint --target` / `vaar lint --target-dir` | Adjusts lint output, rule selection and scope. | [Lint guide](./lint/README.md)                     |
+| `vaar lint --fix` / `vaar lint --json` / `vaar lint --output` / `vaar lint --only` / `vaar lint --skip` / `vaar lint --target` / `vaar lint --target-dir` | Adjusts lint output, JSON file export, rule selection and scope. | [Lint guide](./lint/README.md)                     |
 | `vaar --help` / `vaar help`                                                      | Shows the root help screen.             | [Help guide](./help/README.md)                     |
 | `vaar lint --help` / `vaar help lint`                                            | Shows the lint help screen.             | [Lint help guide](./help/help-lint.md)             |
 | `vaar completion <shell>`                                                        | Prints a shell completion script.       | [Completion guide](./completion/README.md)         |
@@ -29,4 +29,5 @@ For installation, verification and the fastest first run, start with [README](..
 
 1. Install Vaar and verify the binary from [README](../README.md).
 2. Run `vaar lint` in the repository you want to check.
-3. Open [docs/lint/README.md](./lint/README.md) when you need to use/exclude specific rules, use `--json` or understand exit codes.
+3. Use `vaar lint --json --output=lint-report.json` when you want to export the JSON report to a file instead of `stdout`.
+4. Open [docs/lint/README.md](./lint/README.md) when you need to use/exclude specific rules or need the detailed exit-code behavior.

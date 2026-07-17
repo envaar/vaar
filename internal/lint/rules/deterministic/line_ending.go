@@ -13,7 +13,8 @@ type lineEndingRule struct{}
 // endings because the same file should not switch newline style midstream.
 func NewLineEnding() lint.Rule { return lineEndingRule{} }
 
-func (lineEndingRule) ID() string { return "line-ending" }
+func (lineEndingRule) ID() string          { return "line-ending" }
+func (lineEndingRule) Description() string { return "flags files with mixed CRLF and LF line endings" }
 
 func (lineEndingRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

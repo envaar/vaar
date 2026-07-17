@@ -32,6 +32,8 @@ func NewExtraBlankLine() lint.Rule { return deterministic.NewExtraBlankLine() }
 
 func NewInvalidKeyName() lint.Rule { return deterministic.NewInvalidKeyName() }
 
+func NewConstantCase() lint.Rule { return deterministic.NewConstantCase() }
+
 func NewBOMCharacter() lint.Rule { return deterministic.NewBOMCharacter() }
 
 func NewLineEnding() lint.Rule { return deterministic.NewLineEnding() }

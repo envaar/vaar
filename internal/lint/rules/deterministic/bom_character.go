@@ -14,6 +14,9 @@ type bomCharacterRule struct{}
 func NewBOMCharacter() lint.Rule { return bomCharacterRule{} }
 
 func (bomCharacterRule) ID() string { return "bom-character" }
+func (bomCharacterRule) Description() string {
+	return "flags a UTF-8 BOM at the start of a dotenv file"
+}
 
 func (bomCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

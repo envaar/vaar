@@ -14,6 +14,9 @@ type spaceCharacterRule struct{}
 func NewSpaceCharacter() lint.Rule { return spaceCharacterRule{} }
 
 func (spaceCharacterRule) ID() string { return "space-character" }
+func (spaceCharacterRule) Description() string {
+	return "warns about spaces around the key, delimiter or value"
+}
 
 func (spaceCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

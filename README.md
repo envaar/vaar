@@ -113,6 +113,14 @@ Use the `--json` flag output for a portable export in the form of a JSON:
 vaar lint --json
 ```
 
+To write that JSON report to a file instead of `stdout`, use:
+
+```bash
+vaar lint --json --output=report.json
+```
+
+This writes the JSON report to a file. For the full file-output behavior, see [docs/lint/README.md](./docs/lint/README.md).
+
 To apply safe, non destructive formatting fixes, use:
 
 ```bash
@@ -136,6 +144,12 @@ To lint one explicit dotenv file or one directory tree:
 ```bash
 vaar lint --target=.env.staging
 vaar lint --target-dir=src
+```
+
+To list every registered rule with its description:
+
+```bash
+vaar lint --list-rules
 ```
 
 For the lint-specific command reference and rule catalog, see [docs/lint/README.md](./docs/lint/README.md).
@@ -243,7 +257,7 @@ Those boundaries are intentional. Vaar should stay focused before it grows broad
 
 ## Documentation
 
-Please refer to [/docs](/docs/) for all necessary documentation. If you are unsure where to start, try reading [Usage](/docs/usage.md).
+Please refer to [/docs](/docs/) for all necessary documentation. If you are unsure where to start, try reading [Usage](/docs/usage.md). New developers can read the [Primer](/docs/primer/README.md) for a fast, hands-on tour of how Vaar works.
 
 ## System Overview and Repository Layout
 

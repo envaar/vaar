@@ -13,7 +13,8 @@ type trailingWhitespaceRule struct{}
 // which tends to sneak into review diffs unnoticed.
 func NewTrailingWhitespace() lint.Rule { return trailingWhitespaceRule{} }
 
-func (trailingWhitespaceRule) ID() string { return "trailing-whitespace" }
+func (trailingWhitespaceRule) ID() string          { return "trailing-whitespace" }
+func (trailingWhitespaceRule) Description() string { return "warns about trailing whitespace" }
 
 func (trailingWhitespaceRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

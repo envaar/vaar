@@ -11,6 +11,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -24,7 +25,8 @@ type countingRule struct {
 	calls *int
 }
 
-func (r countingRule) ID() string { return r.id }
+func (r countingRule) ID() string          { return r.id }
+func (r countingRule) Description() string { return "counting rule for tests" }
 
 func (r countingRule) Run(lint.Context) ([]lint.Finding, error) {
 	*r.calls++
@@ -288,6 +290,112 @@ func TestRunnerTargetDirModeRecursesAndSkipsIgnoredDirs(t *testing.T) {
 		if got, want := result.Findings[i].File, wantPath; got != want {
 			t.Fatalf("unexpected finding file at %d: got %q want %q", i, got, want)
 		}
+	}
+}
+
+func TestRunnerFixWithChangesRunsSecondPass(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("TRAIL=one  \n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	calls := new(int)
+	runner := lint.NewRunner(append([]lint.Rule{
+		countingRule{id: "pass-counter", calls: calls},
+	}, rules.All()...)...)
+
+	result, err := runner.Run(context.Background(), lint.Options{
+		Root:      root,
+		Fix:       true,
+		OnlyRules: []string{"pass-counter", "trailing-whitespace"},
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	if got, want := *calls, 2; got != want {
+		t.Fatalf("unexpected rule run count: got %d want %d", got, want)
+	}
+	if !result.Changed {
+		t.Fatalf("expected the run to report a change")
+	}
+
+	if got, want := len(result.Findings), 1; got != want {
+		t.Fatalf("unexpected findings count: got %d want %d", got, want)
+	}
+	if got, want := result.Findings[0].Rule, "trailing-whitespace"; got != want {
+		t.Fatalf("unexpected rule: got %q want %q", got, want)
+	}
+	if !result.Findings[0].Fixed {
+		t.Fatalf("expected the fixed finding to be marked as fixed")
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if got, want := string(content), "TRAIL=one\n"; got != want {
+		t.Fatalf("unexpected file content: got %q want %q", got, want)
+	}
+}
+
+func TestRunnerFixWithoutChangesSkipsSecondPass(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("KEY=one\nKEY=two\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	calls := new(int)
+	runner := lint.NewRunner(append([]lint.Rule{
+		countingRule{id: "pass-counter", calls: calls},
+	}, rules.All()...)...)
+
+	baseline, err := runner.Run(context.Background(), lint.Options{
+		Root:      root,
+		OnlyRules: []string{"pass-counter", "duplicate-key"},
+	})
+	if err != nil {
+		t.Fatalf("baseline run failed: %v", err)
+	}
+	if got, want := len(baseline.Findings), 1; got != want {
+		t.Fatalf("unexpected baseline findings count: got %d want %d", got, want)
+	}
+
+	*calls = 0
+
+	result, err := runner.Run(context.Background(), lint.Options{
+		Root:      root,
+		Fix:       true,
+		OnlyRules: []string{"pass-counter", "duplicate-key"},
+	})
+	if err != nil {
+		t.Fatalf("fix run failed: %v", err)
+	}
+
+	if got, want := *calls, 1; got != want {
+		t.Fatalf("unexpected rule run count: got %d want %d", got, want)
+	}
+	if result.Changed {
+		t.Fatalf("expected the run to report no change")
+	}
+
+	if !reflect.DeepEqual(result.Findings, baseline.Findings) {
+		t.Fatalf("unexpected findings: got %#v want %#v", result.Findings, baseline.Findings)
+	}
+	for _, finding := range result.Findings {
+		if finding.Fixed {
+			t.Fatalf("expected no finding to be marked fixed, got %#v", finding)
+		}
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if got, want := string(content), "KEY=one\nKEY=two\n"; got != want {
+		t.Fatalf("unexpected file content: got %q want %q", got, want)
 	}
 }
 
