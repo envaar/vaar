@@ -20,10 +20,19 @@ func validateOutputDestination(output string) error {
 	if hasTrailingSeparator(output) {
 		return outputDirectoryError(output)
 	}
-	if info, err := os.Stat(output); err == nil && info.IsDir() {
-		return outputDirectoryError(output)
+
+	info, err := os.Stat(output)
+	switch {
+	case err == nil:
+		if info.IsDir() {
+			return outputDirectoryError(output)
+		}
+		return nil
+	case os.IsNotExist(err):
+		return nil
+	default:
+		return NewToolError(fmt.Sprintf("checking output destination %q failed", output), err)
 	}
-	return nil
 }
 
 // writeJSONOutput writes data to path via a temporary file in the destination
