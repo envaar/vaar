@@ -146,16 +146,21 @@ func TestLintCommandOnlyValueWithoutQuotesReportsOnlyThatRule(t *testing.T) {
 func TestLintCommandSkipValueWithoutQuotesSuppressesThatRule(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, ".env")
-	if err := os.WriteFile(path, []byte("KEY=hello world\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("KEY=hello world\nKEY=other\n"), 0o644); err != nil {
 		t.Fatalf("write failed: %v", err)
 	}
 
 	stdout, err := runLintCommand(t, root, "--skip=value-without-quotes")
-	if err != nil {
-		t.Fatalf("expected skip run to succeed, got %v", err)
+	if err == nil {
+		t.Fatal("expected remaining findings")
 	}
-	if stdout != "" {
-		t.Fatalf("expected no stdout output, got %q", stdout)
+	if got := ExitCode(err); got != ExitFindings {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitFindings)
+	}
+
+	want := "error duplicate-key .env:2 KEY is defined more than once\n"
+	if stdout != want {
+		t.Fatalf("unexpected output: got %q want %q", stdout, want)
 	}
 }
 
