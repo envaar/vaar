@@ -44,6 +44,15 @@ func TestValueWithoutQuotes(t *testing.T) {
 		},
 		{
 			rule:            deterministic.NewValueWithoutQuotes(),
+			input:           []byte("MULTIPLE_SPACES=hello   world\n"),
+			wantCount:       1,
+			wantLine:        1,
+			wantRule:        "value-without-quotes",
+			wantSeverity:    "error",
+			wantMessagePart: "value containing whitespace should be enclosed in quotes",
+		},
+		{
+			rule:            deterministic.NewValueWithoutQuotes(),
 			input:           []byte("TAB_VALUE=hello\tworld\n"),
 			wantCount:       1,
 			wantLine:        1,
@@ -59,6 +68,11 @@ func TestValueWithoutQuotes(t *testing.T) {
 		{
 			rule:      deterministic.NewValueWithoutQuotes(),
 			input:     []byte("HASH_IN_QUOTES=\"value # not a comment\"\n"),
+			wantCount: 0,
+		},
+		{
+			rule:      deterministic.NewValueWithoutQuotes(),
+			input:     []byte("BROKEN=\"hello world\n"),
 			wantCount: 0,
 		},
 	}

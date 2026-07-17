@@ -22,6 +22,8 @@ func NewLeadingCharacter() lint.Rule { return deterministic.NewLeadingCharacter(
 
 func NewQuoteCharacter() lint.Rule { return deterministic.NewQuoteCharacter() }
 
+func NewValueWithoutQuotes() lint.Rule { return deterministic.NewValueWithoutQuotes() }
+
 func NewSpaceCharacter() lint.Rule { return deterministic.NewSpaceCharacter() }
 
 func NewTrailingWhitespace() lint.Rule { return deterministic.NewTrailingWhitespace() }

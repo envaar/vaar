@@ -1,3 +1,8 @@
+/*
+Copyright © 2026 envaar
+SPDX-License-Identifier: Apache-2.0
+*/
+
 package deterministic
 
 import (
@@ -24,7 +29,6 @@ func (valueWithoutQuotesRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 
 	for _, file := range ctx.Files {
 		for _, line := range file.Lines {
-
 			if !line.HasAssignment || !line.HasValue {
 				continue
 			}
@@ -33,14 +37,12 @@ func (valueWithoutQuotesRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 				continue
 			}
 
-			if line.QuoteState == envfile.QuoteSingle ||
-				line.QuoteState == envfile.QuoteDouble {
+			if line.QuoteState != envfile.QuoteNone {
 				continue
 			}
 
 			if strings.ContainsRune(line.Value, ' ') ||
 				strings.ContainsRune(line.Value, '\t') {
-
 				findings = append(findings, finding(
 					valueWithoutQuotesRule{}.ID(),
 					lint.SeverityError,
