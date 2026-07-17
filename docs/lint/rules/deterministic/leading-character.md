@@ -32,3 +32,17 @@ Remove the leading indentation.
 ```dotenv
 KEY=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=leading-character
+```
+
+Bad Example Produces:
+
+```text
+warn leading-character .env:1 line starts with leading whitespace
+```

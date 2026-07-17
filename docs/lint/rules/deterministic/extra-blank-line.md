@@ -40,3 +40,17 @@ KEY=value
 
 OTHER=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=extra-blank-line
+```
+
+Bad Example Produces:
+
+```text
+warn extra-blank-line .env:3 repeated blank line
+```

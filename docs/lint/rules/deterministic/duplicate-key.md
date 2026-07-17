@@ -33,3 +33,17 @@ KEY=other
 ```dotenv
 KEY=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=duplicate-key
+```
+
+Bad Example Produces:
+
+```text
+error duplicate-key .env:2 KEY is defined more than once
+```

@@ -32,3 +32,17 @@ KEY = value
 ```dotenv
 KEY=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=space-character
+```
+
+Bad Example Produces:
+
+```text
+warn space-character .env:1 line has spaces around the key, delimiter or value
+```

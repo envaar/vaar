@@ -32,3 +32,17 @@ KEY=
 ```dotenv
 KEY=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=key-without-value
+```
+
+Bad Example Produces:
+
+```text
+error key-without-value .env:1 KEY is missing a value
+```
