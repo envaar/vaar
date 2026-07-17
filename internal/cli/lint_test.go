@@ -143,6 +143,22 @@ func TestLintCommandOnlyValueWithoutQuotesReportsOnlyThatRule(t *testing.T) {
 	}
 }
 
+func TestLintCommandSkipValueWithoutQuotesSuppressesThatRule(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env")
+	if err := os.WriteFile(path, []byte("KEY=hello world\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, err := runLintCommand(t, root, "--skip=value-without-quotes")
+	if err != nil {
+		t.Fatalf("expected skip run to succeed, got %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout output, got %q", stdout)
+	}
+}
+
 func TestLintCommandRejectsOutputWithoutJSON(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, ".env")
