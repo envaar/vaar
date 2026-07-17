@@ -45,5 +45,5 @@ DEBUG=true
 ## Example output
 
 ```text
-.env:1 value-without-quotes: value containing whitespace should be enclosed in quotes
+error value-without-quotes .env:1 value containing whitespace should be enclosed in quotes
 ```
