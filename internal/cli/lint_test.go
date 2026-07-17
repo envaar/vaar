@@ -929,6 +929,9 @@ func TestLintCommandListsRulesAlphabetically(t *testing.T) {
 		t.Fatalf("expected output to start with NAME header, got %q", output)
 	}
 	header, _, _ := strings.Cut(output, "\n")
+	if !strings.Contains(header, "FIXABLE") {
+		t.Fatalf("expected header to contain FIXABLE column, got %q", header)
+	}
 	if !strings.Contains(header, "DESCRIPTION") {
 		t.Fatalf("expected header to contain DESCRIPTION column, got %q", header)
 	}
@@ -946,19 +949,29 @@ func TestLintCommandListsRulesAlphabetically(t *testing.T) {
 	}
 
 	descriptions := make(map[string]string, len(expected))
+	fixLabels := make(map[string]string, len(expected))
 	for _, rule := range expected {
 		description := strings.TrimSpace(rule.Description())
 		if description == "" {
 			t.Fatalf("rule %q has an empty description", rule.ID())
 		}
 		descriptions[rule.ID()] = description
+		if lint.IsFixable(rule) {
+			fixLabels[rule.ID()] = "yes"
+		} else {
+			fixLabels[rule.ID()] = "no"
+		}
 	}
 
 	gotIDs := make([]string, 0, len(expected))
 	for _, line := range lines[1:] {
-		id, description, found := strings.Cut(strings.TrimSpace(line), " ")
+		id, rest, found := strings.Cut(strings.TrimSpace(line), " ")
 		if !found {
-			t.Fatalf("expected rule line to carry a description: %q", line)
+			t.Fatalf("expected rule line to carry a fixable flag and description: %q", line)
+		}
+		fixable, description, found := strings.Cut(strings.TrimSpace(rest), " ")
+		if !found {
+			t.Fatalf("expected rule line to carry a description after the fixable flag: %q", line)
 		}
 		gotIDs = append(gotIDs, id)
 
@@ -969,10 +982,65 @@ func TestLintCommandListsRulesAlphabetically(t *testing.T) {
 		if got := strings.TrimSpace(description); got != want {
 			t.Fatalf("wrong description on the %q line:\ngot  %q\nwant %q", id, got, want)
 		}
+		if got := strings.TrimSpace(fixable); got != fixLabels[id] {
+			t.Fatalf("wrong fixable flag on the %q line:\ngot  %q\nwant %q", id, got, fixLabels[id])
+		}
 	}
 
 	if !slicesEqual(gotIDs, wantIDs) {
 		t.Fatalf("unexpected rule order or content:\ngot  %v\nwant %v", gotIDs, wantIDs)
+	}
+}
+
+func TestLintCommandListRulesShowsFixableColumn(t *testing.T) {
+	cmd := newRootCmd()
+	cmd.SetArgs([]string{"lint", "--list-rules"})
+
+	var stdout bytes.Buffer
+	cmd.SetOut(&stdout)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("expected --list-rules to succeed, got %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	header := lines[0]
+
+	// The FIXABLE column sits between NAME and DESCRIPTION.
+	nameIdx := strings.Index(header, "NAME")
+	fixableIdx := strings.Index(header, "FIXABLE")
+	descriptionIdx := strings.Index(header, "DESCRIPTION")
+	if nameIdx < 0 || fixableIdx < 0 || descriptionIdx < 0 {
+		t.Fatalf("expected NAME, FIXABLE and DESCRIPTION headers, got %q", header)
+	}
+	if !(nameIdx < fixableIdx && fixableIdx < descriptionIdx) {
+		t.Fatalf("expected column order NAME < FIXABLE < DESCRIPTION, got %q", header)
+	}
+
+	// Spot-check both column values against known rules: a rule the fix pass
+	// repairs reads "yes" and one it cannot reads "no".
+	wantLabels := map[string]string{
+		"bom-character":       "yes",
+		"duplicate-key":       "no",
+		"incorrect-delimiter": "no",
+		"trailing-whitespace": "yes",
+	}
+	seen := map[string]string{}
+	for _, line := range lines[1:] {
+		id, rest, ok := strings.Cut(strings.TrimSpace(line), " ")
+		if !ok {
+			continue
+		}
+		fixable, _, ok := strings.Cut(strings.TrimSpace(rest), " ")
+		if !ok {
+			continue
+		}
+		seen[id] = strings.TrimSpace(fixable)
+	}
+	for id, want := range wantLabels {
+		if got := seen[id]; got != want {
+			t.Fatalf("rule %q: got fixable label %q, want %q", id, got, want)
+		}
 	}
 }
 
