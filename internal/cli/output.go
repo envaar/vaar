@@ -30,8 +30,9 @@ func validateOutputDestination(output string) error {
 // directory followed by an atomic rename. filepath.Dir keeps the temporary file
 // on the same volume as the destination so the rename stays atomic. If the
 // destination is a regular file on Windows and a direct rename fails, the file
-// is removed and the rename is retried; existing directories are rejected and
-// never removed.
+// is moved to a unique backup path, the replacement is retried, and the
+// original file is restored if the retry fails. Existing directories are
+// rejected and never removed.
 func writeJSONOutput(path string, data []byte) error {
 	dir := outputTempDir(path)
 
@@ -82,16 +83,55 @@ func finalizeJSONOutput(tmpName, path string) error {
 		return outputDirectoryError(path)
 	}
 	if runtime.GOOS == "windows" && statErr == nil {
-		if err := os.Remove(path); err != nil {
-			return outputWriteError(path, err)
-		}
-		if err := os.Rename(tmpName, path); err != nil {
+		if err := replaceJSONOutputWindows(tmpName, path); err != nil {
 			return outputWriteError(path, err)
 		}
 		return nil
 	}
 
 	return outputWriteError(path, renameErr)
+}
+
+func replaceJSONOutputWindows(tmpName, path string) error {
+	backup, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".vaar-backup-*")
+	if err != nil {
+		return err
+	}
+	backupName := backup.Name()
+	if err := backup.Close(); err != nil {
+		_ = os.Remove(backupName)
+		return err
+	}
+
+	cleanBackup := true
+	defer func() {
+		if cleanBackup {
+			_ = os.Remove(backupName)
+		}
+	}()
+
+	if err := os.Rename(path, backupName); err != nil {
+		if chmodErr := os.Chmod(path, 0o600); chmodErr == nil {
+			if retryErr := os.Rename(path, backupName); retryErr == nil {
+				err = nil
+			} else {
+				err = retryErr
+			}
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := os.Rename(tmpName, path); err != nil {
+		if restoreErr := os.Rename(backupName, path); restoreErr != nil {
+			cleanBackup = false
+			return fmt.Errorf("%w; restore original failed: %v", err, restoreErr)
+		}
+		return err
+	}
+
+	return nil
 }
 
 func outputDirectoryError(path string) error {

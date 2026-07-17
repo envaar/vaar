@@ -90,6 +90,18 @@ func TestWriteJSONOutputReplacesReadonlyFileOnWindows(t *testing.T) {
 	if string(data) != string(payload) {
 		t.Fatalf("unexpected output: got %q want %q", string(data), string(payload))
 	}
+
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("readdir failed: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "lint.json" {
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name())
+		}
+		t.Fatalf("unexpected leftover files: %v", names)
+	}
 }
 
 func TestOutputTempDirUsesWindowsDriveRoot(t *testing.T) {
