@@ -42,6 +42,7 @@ Use the accurate matching evidence level for each rule page:
 | [ending-blank-line](./deterministic/ending-blank-line.md)     | Deterministic  | Flags a file ending that does not match the current policy. |
 | [extra-blank-line](./deterministic/extra-blank-line.md)       | Deterministic  | Flags repeated blank lines.                                 |
 | [invalid-key-name](./deterministic/invalid-key-name.md)       | Deterministic  | Flags non-portable environment variable names.              |
+| [constant-case](./deterministic/constant-case.md)             | Deterministic  | Flags portable keys that are not CONSTANT_CASE.             |
 | [bom-character](./deterministic/bom-character.md)             | Deterministic  | Flags a UTF-8 BOM at the start of a file.                   |
 | [line-ending](./deterministic/line-ending.md)                 | Deterministic  | Flags mixed CRLF and LF line endings.                       |
 
