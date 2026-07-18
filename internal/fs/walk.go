@@ -13,18 +13,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
-
-// dotenvNames lists the filenames Discover treats as dotenv files so the CLI
-// behaves the same across projects with different dotenv conventions.
-var dotenvNames = map[string]struct{}{
-	".env":             {},
-	".env.example":     {},
-	".env.local":       {},
-	".env.development": {},
-	".env.test":        {},
-	".env.production":  {},
-}
 
 // Discover walks root, returns dotenv files in stable order and skips build,
 // dependency, VCS and fixture directories that should not be linted.
@@ -79,6 +69,5 @@ func Discover(root string) ([]string, error) {
 }
 
 func isDotenvFile(name string) bool {
-	_, ok := dotenvNames[name]
-	return ok
+	return name == ".env" || (strings.HasPrefix(name, ".env.") && name != ".env.")
 }

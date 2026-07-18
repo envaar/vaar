@@ -204,6 +204,36 @@ func TestRunnerOnlySelectionStillUsesRealRules(t *testing.T) {
 	}
 }
 
+func TestRunnerDefaultDiscoveryLintsArbitraryDotenvSuffix(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".env.preview-local")
+	if err := os.WriteFile(path, []byte("KEY=value\nKEY=other\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	runner := lint.NewRunner(rules.All()...)
+	result, err := runner.Run(context.Background(), lint.Options{
+		Root:      root,
+		OnlyRules: []string{"duplicate-key"},
+	})
+	if err != nil {
+		t.Fatalf("run failed: %v", err)
+	}
+
+	if got, want := len(result.Files), 1; got != want {
+		t.Fatalf("unexpected file count: got %d want %d", got, want)
+	}
+	if got, want := result.Files[0].Path, ".env.preview-local"; got != want {
+		t.Fatalf("unexpected parsed path: got %q want %q", got, want)
+	}
+	if got, want := len(result.Findings), 1; got != want {
+		t.Fatalf("unexpected finding count: got %d want %d", got, want)
+	}
+	if got, want := result.Findings[0].File, ".env.preview-local"; got != want {
+		t.Fatalf("unexpected finding file: got %q want %q", got, want)
+	}
+}
+
 func TestRunnerTargetFileModeUsesExplicitPath(t *testing.T) {
 	root := t.TempDir()
 

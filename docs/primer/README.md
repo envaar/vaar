@@ -21,14 +21,9 @@ Vaar is a Go command-line tool for checking environment configuration. It discov
 
 ### What Vaar Checks 
 
-By default Vaar discovers these filenames:
-
-- `.env`
-- `.env.example`
-- `.env.local`
-- `.env.development`
-- `.env.test`
-- `.env.production`
+By default Vaar discovers `.env` and any filename beginning with `.env.`, such
+as `.env.example`, `.env.local` or `.env.preview-local`. It does not treat
+`.env.`, `.environment`, `.envrc` or `my.env` as dotenv files.
 
 Discovery is recursive and stays deterministic. The repository walk skips generated, vendored, fixture and VCS directories, as implemented in `internal/fs/`.
 
