@@ -72,8 +72,8 @@ func newDiffCmd() *cobra.Command {
 				}
 			}
 
-			// Return an error context to exit with a non-zero code since structural differences were found
-			return NewToolError("dotenv files diverge", nil)
+			// Return the specific structured ExitError highlighting findings detection
+			return ExitError{Code: ExitFindings}
 			// === MODIFIED SECTION END ===
 		},
 	}
