@@ -34,9 +34,9 @@ and automation-friendly output.`,
 	cmd.SetVersionTemplate("vaar version {{.Version}}\n")
 
 	cmd.AddCommand(
-    newLintCmd(),
-    newDiffCmd(),
-)
+		newLintCmd(),
+		newDiffCmd(),
+	)
 	return cmd
 }
 
