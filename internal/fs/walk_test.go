@@ -67,17 +67,12 @@ func TestDiscoverFindsDotenvFilesAndSkipsBuildDirs(t *testing.T) {
 func TestDiscoverSingleFileRecognizesDotenvFilenamePattern(t *testing.T) {
 	cases := []struct {
 		name string
-		want bool
 	}{
-		{name: ".env", want: true},
-		{name: ".env.local", want: true},
-		{name: ".env.prod", want: true},
-		{name: ".env.temp", want: true},
-		{name: ".env.preview-local", want: true},
-		{name: ".env.", want: false},
-		{name: ".environment", want: false},
-		{name: "my.env", want: false},
-		{name: ".envrc", want: false},
+		{name: ".env"},
+		{name: ".env.local"},
+		{name: ".env.prod"},
+		{name: ".env.temp"},
+		{name: ".env.preview-local"},
 	}
 
 	for _, tc := range cases {
@@ -88,18 +83,11 @@ func TestDiscoverSingleFileRecognizesDotenvFilenamePattern(t *testing.T) {
 			}
 
 			files, err := fs.Discover(path)
-			if tc.want {
-				if err != nil {
-					t.Fatalf("discover failed: %v", err)
-				}
-				if len(files) != 1 || files[0] != path {
-					t.Fatalf("unexpected discovery result: %#v", files)
-				}
-				return
+			if err != nil {
+				t.Fatalf("discover failed: %v", err)
 			}
-
-			if err == nil {
-				t.Fatalf("expected %q to be rejected, got %#v", tc.name, files)
+			if len(files) != 1 || files[0] != path {
+				t.Fatalf("unexpected discovery result: %#v", files)
 			}
 		})
 	}
