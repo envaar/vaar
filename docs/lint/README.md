@@ -79,7 +79,7 @@ Useful for selecting a specific rule or a specific list of rules to run.
 - The flag can be repeated to specify each rule to be checked.
 - Unknown rule names are rejected before linting starts.
 - Listing the same rule more than once does not run it multiple times.
-- Combined with `--fix`, the fix pass is scoped to the selected rules.
+- Combined with `--fix`, fixing is limited to the selected rules.
 
 Examples:
 
@@ -94,7 +94,7 @@ Useful for selecting a specific rule or a specific list of rules to be skipped.
 
 - The flag can be repeated to specify each rule to be skipped.
 - Unknown rule names are rejected before linting starts.
-- Combined with `--fix`, the fix pass composes every rule's fix except the skipped ones.
+- Combined with `--fix`, fixing occurs on every supported safe rule fix except the rules selected to be skipped.
 
 Examples:
 
