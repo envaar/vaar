@@ -5,7 +5,10 @@ SPDX-License-Identifier: Apache-2.0
 
 package deterministic
 
-import "github.com/envaar/vaar/internal/lint"
+import (
+	"github.com/envaar/vaar/internal/envfile"
+	"github.com/envaar/vaar/internal/lint"
+)
 
 type endingBlankLineRule struct{}
 
@@ -17,6 +20,9 @@ func (endingBlankLineRule) ID() string { return "ending-blank-line" }
 func (endingBlankLineRule) Description() string {
 	return "flags files that do not end with one clean trailing newline"
 }
+
+// Fix removes trailing blank lines and leaves exactly one final newline.
+func (endingBlankLineRule) Fix(data []byte) []byte { return envfile.TrimFinalBlankLines(data) }
 
 func (endingBlankLineRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

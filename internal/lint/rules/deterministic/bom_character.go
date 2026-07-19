@@ -5,7 +5,10 @@ SPDX-License-Identifier: Apache-2.0
 
 package deterministic
 
-import "github.com/envaar/vaar/internal/lint"
+import (
+	"github.com/envaar/vaar/internal/envfile"
+	"github.com/envaar/vaar/internal/lint"
+)
 
 type bomCharacterRule struct{}
 
@@ -17,6 +20,9 @@ func (bomCharacterRule) ID() string { return "bom-character" }
 func (bomCharacterRule) Description() string {
 	return "flags a UTF-8 BOM at the start of a dotenv file"
 }
+
+// Fix strips the leading UTF-8 BOM so the first key on disk is not altered.
+func (bomCharacterRule) Fix(data []byte) []byte { return envfile.StripBOM(data) }
 
 func (bomCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/envaar/vaar/internal/lint"
+	"github.com/envaar/vaar/internal/lint/rules"
 )
 
 func TestApplyFixesNormalizesSafeFormatting(t *testing.T) {
@@ -22,7 +23,7 @@ func TestApplyFixesNormalizesSafeFormatting(t *testing.T) {
 		t.Fatalf("write failed: %v", err)
 	}
 
-	changed, err := lint.ApplyFixes([]string{path})
+	changed, err := lint.ApplyFixes(rules.All(), []string{path})
 	if err != nil {
 		t.Fatalf("apply fixes failed: %v", err)
 	}

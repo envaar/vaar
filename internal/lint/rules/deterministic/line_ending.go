@@ -5,7 +5,10 @@ SPDX-License-Identifier: Apache-2.0
 
 package deterministic
 
-import "github.com/envaar/vaar/internal/lint"
+import (
+	"github.com/envaar/vaar/internal/envfile"
+	"github.com/envaar/vaar/internal/lint"
+)
 
 type lineEndingRule struct{}
 
@@ -15,6 +18,9 @@ func NewLineEnding() lint.Rule { return lineEndingRule{} }
 
 func (lineEndingRule) ID() string          { return "line-ending" }
 func (lineEndingRule) Description() string { return "flags files with mixed CRLF and LF line endings" }
+
+// Fix converts CRLF and lone CR line endings to LF so the file uses one style.
+func (lineEndingRule) Fix(data []byte) []byte { return envfile.NormalizeLineEndings(data) }
 
 func (lineEndingRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
