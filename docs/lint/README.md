@@ -107,7 +107,7 @@ vaar lint --skip=trailing-whitespace --skip=extra-blank-line
 
 Prints every registered rule in alphabetical order with its canonical name, whether `--fix` repairs it and a concise description, then exits successfully. This is an informational mode: it does not discover dotenv files, run rules or require a repository, so it works from any directory.
 
-The output uses NAME, FIXABLE and DESCRIPTION columns. The FIXABLE column reads `yes` when a rule has a safe fix can be applied using `--fix` and `no` otherwise. 
+The output uses NAME, FIXABLE and DESCRIPTION columns. The FIXABLE column reads `yes` when a rule has a safe fix that can be applied using `--fix`, and `no` otherwise.
 
 `--list-rules` cannot be combined with execution or output flags: `--only`, `--skip`, `--fix`, `--target`, `--target-dir`, `--output` or `--json`; doing so returns a usage error naming the conflicting flag.
 
