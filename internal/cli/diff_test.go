@@ -79,8 +79,13 @@ func TestDiffCommandJSONMatchingFiles(t *testing.T) {
 	left := filepath.Join(root, ".env")
 	right := filepath.Join(root, ".env.example")
 
-	os.WriteFile(left, []byte("FOO=123\n"), 0o644)
-	os.WriteFile(right, []byte("FOO=secret\n"), 0o644)
+	if err := os.WriteFile(left, []byte("FOO=123\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(right, []byte("FOO=secret\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	var stdout bytes.Buffer
 

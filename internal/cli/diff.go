@@ -75,7 +75,9 @@ func newDiffCmd() *cobra.Command {
 					return err
 				}
 
-				fmt.Fprintln(cmd.OutOrStdout(), string(data))
+				if _, err := fmt.Fprintln(cmd.OutOrStdout(), string(data)); err != nil {
+					return err
+				}
 			}
 
 			if different {
