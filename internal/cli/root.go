@@ -33,7 +33,10 @@ and automation-friendly output.`,
 	cmd.SilenceUsage = true
 	cmd.SetVersionTemplate("vaar version {{.Version}}\n")
 
-	cmd.AddCommand(newLintCmd())
+	cmd.AddCommand(
+		newLintCmd(),
+		newDiffCmd(),
+	)
 	return cmd
 }
 
