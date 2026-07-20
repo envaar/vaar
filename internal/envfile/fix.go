@@ -38,9 +38,29 @@ func NormalizeLineEndings(data []byte) []byte {
 	return data
 }
 
+// HasMixedLineEndings reports whether data mixes LF and CRLF line endings. It
+// mirrors exactly how the parser sets File.MixedLineEndings — sawLF && sawCRLF
+// over the split lines — so a scoped line-ending fix can stay finding-conditional
+// and agree byte for byte with what the rule reports. The line-ending rule flags
+// a file only when it is mixed, so its fix normalizes only mixed input; a file
+// whose endings are uniform (all LF, all CRLF, or all lone CR) has no finding and
+// must be left untouched rather than blindly rewritten to LF.
+func HasMixedLineEndings(data []byte) bool {
+	var sawLF, sawCRLF bool
+	for _, line := range Split(data) {
+		switch line.Ending {
+		case LineEndingLF:
+			sawLF = true
+		case LineEndingCRLF:
+			sawCRLF = true
+		}
+	}
+	return sawLF && sawCRLF
+}
+
 // TrimTrailingWhitespace removes trailing spaces and tabs from every line and
-// empties any line that is nothing but whitespace. It is the fix half of the
-// trailing-whitespace rule.
+// empties any line that is nothing but spaces and tabs. It is the fix half of
+// the trailing-whitespace rule.
 //
 // It splits on each line delimiter (LF, CRLF or a lone CR) and preserves that
 // delimiter verbatim, stripping only the spaces and tabs immediately before it,
@@ -70,10 +90,14 @@ func TrimTrailingWhitespace(data []byte) []byte {
 			}
 		}
 
-		if len(bytes.TrimSpace(content)) != 0 {
-			// A line with real content keeps it with trailing spaces and tabs
-			// stripped; a whitespace-only line (including stray vertical tabs
-			// or form feeds) carries none, so only its delimiter survives.
+		if !isBlankLine(content) {
+			// A line with any non-space/tab byte keeps its content with only
+			// trailing spaces and tabs stripped; a line that is nothing but
+			// spaces and tabs empties so only its delimiter survives. Blankness
+			// uses the spaces/tabs-only isBlankLine definition the trailing-
+			// whitespace rule models, so a line whose only "blank" bytes are a
+			// vertical tab or form feed — which the rule does not own — is kept
+			// (with its trailing spaces and tabs trimmed) rather than emptied.
 			out.Write(bytes.TrimRight(content, " \t"))
 		}
 		out.Write(delim)
@@ -127,11 +151,13 @@ func CollapseBlankLines(data []byte) []byte {
 // file's prevailing line ending (the last delimited line's delimiter) so a
 // scoped fix on a CRLF file that merely lacks its final newline stays all-CRLF
 // instead of introducing a bare LF; with no delimiter anywhere it defaults to a
-// single LF. A lone CR that is the final byte of the input completes to CRLF so
-// the file ends with a lexer-recognized newline. The full fix pipeline runs
-// NormalizeLineEndings first, so no CR reaches this transform there and the
-// composed output is unchanged; the CR handling matters only under a scoped
-// --fix.
+// single LF. A lone CR that is the final byte of the input is itself a line
+// terminator the lexer recognizes, so a pure lone-CR file already ends with a
+// newline and is kept as-is; the terminal lone CR is completed to CRLF only when
+// the prevailing delimiter is CRLF, i.e. it is the dangling half of the file's
+// CRLF style. The full fix pipeline runs NormalizeLineEndings first, so no CR
+// reaches this transform there and the composed output is unchanged; the CR
+// handling matters only under a scoped --fix.
 func TrimFinalBlankLines(data []byte) []byte {
 	type rawLine struct{ content, delim []byte }
 
@@ -176,12 +202,26 @@ func TrimFinalBlankLines(data []byte) []byte {
 			}
 			buf.Write(terminator)
 		case bytes.Equal(delim, []byte("\r")) && j == len(lines)-1:
-			// A lone CR that is the final byte of the input is a dangling
-			// half of a CRLF; complete it so the file ends with a newline
-			// the lexer recognizes. A lone CR that instead separated this
-			// line from a dropped blank run keeps its lone CR (below).
-			buf.WriteByte('\r')
-			buf.WriteByte('\n')
+			// A lone CR that is the final byte of the input is itself a line
+			// terminator the lexer recognizes, so a pure lone-CR file already
+			// ends with a newline and keeps its lone CR. Complete it to CRLF
+			// only when the prevailing delimiter is CRLF — the terminal CR is
+			// then the dangling half of the file's CRLF style. A lone CR that
+			// instead separated this line from a dropped blank run keeps its
+			// lone CR (below).
+			prevailingCRLF := false
+			for k := end - 2; k >= 0; k-- {
+				if len(lines[k].delim) > 0 {
+					prevailingCRLF = bytes.Equal(lines[k].delim, []byte("\r\n"))
+					break
+				}
+			}
+			if prevailingCRLF {
+				buf.WriteByte('\r')
+				buf.WriteByte('\n')
+			} else {
+				buf.WriteByte('\r')
+			}
 		default:
 			buf.Write(delim)
 		}

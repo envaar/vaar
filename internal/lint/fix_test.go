@@ -36,7 +36,12 @@ func TestApplyFixesNormalizesSafeFormatting(t *testing.T) {
 		t.Fatalf("read failed: %v", err)
 	}
 
-	if string(got) != "KEY=value\n" {
+	// The file uses uniform CRLF endings, so it has no line-ending finding and
+	// the now finding-scoped line-ending fix leaves the CRLF in place; only the
+	// trailing whitespace and the trailing blank line are repaired. The endings
+	// stay CRLF rather than being forced to LF the way the old unconditional
+	// normalize did.
+	if string(got) != "KEY=value\r\n" {
 		t.Fatalf("unexpected normalized content: %q", string(got))
 	}
 }

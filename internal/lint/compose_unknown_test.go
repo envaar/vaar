@@ -60,11 +60,14 @@ func TestFixDataAppliesUnknownFixableRule(t *testing.T) {
 	}
 
 	all := append(rules.All(), custom)
-	// The canonical fixes normalize the CRLF ending and trim the trailing
+	// The canonical fixes normalize the line endings and trim the trailing
 	// whitespace before the unknown rule's fix resolves the marker; only then
-	// has the CR already been normalized away.
-	input := []byte("KEY=valueX  \r\n")
-	want := []byte("KEY=valuelf\n")
+	// has the CR already been normalized away. The input MIXES CRLF and LF so
+	// the now finding-scoped line-ending fix actually fires (a uniform-CRLF file
+	// has no line-ending finding and would keep its CR), keeping this an
+	// ordering assertion rather than one that depends on stripping a uniform CR.
+	input := []byte("KEY=valueX  \r\nZ=1\n")
+	want := []byte("KEY=valuelf\nZ=1\n")
 	if got := lint.FixData(all, input); !bytes.Equal(got, want) {
 		t.Fatalf("unknown fixable rule not applied after canonical prefix: got %q want %q", got, want)
 	}

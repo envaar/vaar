@@ -66,14 +66,19 @@ func TestTrimTrailingWhitespacePreservesDelimiters(t *testing.T) {
 			want: "A=1\n\nB=2\n",
 		},
 		{
-			name: "vertical tab line empties, delimiter kept",
+			// A vertical tab or form feed is not a space or tab, so the
+			// trailing-whitespace rule does not model it and this line is not a
+			// whitespace-only finding. The fix keeps the line's non-space/tab
+			// content (trailing spaces and tabs trimmed) instead of emptying it,
+			// so it does not touch bytes the rule does not own.
+			name: "vertical tab line kept, trailing spaces trimmed",
 			in:   "A=1\n  \v  \nB=2\n",
-			want: "A=1\n\nB=2\n",
+			want: "A=1\n  \v\nB=2\n",
 		},
 		{
-			name: "form feed line empties, delimiter kept",
+			name: "form feed line kept, delimiter unchanged",
 			in:   "A=1\n\f\nB=2\n",
-			want: "A=1\n\nB=2\n",
+			want: "A=1\n\f\nB=2\n",
 		},
 		{
 			name: "empty input stays empty",
@@ -205,6 +210,16 @@ func TestTrimFinalBlankLinesPreservesLoneCR(t *testing.T) {
 		want string
 	}{
 		{
+			// A lone CR is itself a line terminator the lexer recognizes, so a
+			// pure lone-CR file already ends with a newline. The terminal lone
+			// CR is completed to CRLF only when the prevailing delimiter is CRLF
+			// (see the crlf test below); with no prevailing CRLF it is kept as a
+			// lone CR rather than being turned into A=1\r\n.
+			name: "pure lone cr terminator preserved",
+			in:   "A=1\r",
+			want: "A=1\r",
+		},
+		{
 			name: "trailing blank cr lines trimmed, lone cr preserved",
 			in:   "A=1\r\r\r",
 			want: "A=1\r",
@@ -305,6 +320,38 @@ func TestTrimFinalBlankLinesPreservesCRLF(t *testing.T) {
 			got := envfile.TrimFinalBlankLines([]byte(tc.in))
 			if string(got) != tc.want {
 				t.Fatalf("TrimFinalBlankLines(%q) = %q, want %q", tc.in, string(got), tc.want)
+			}
+		})
+	}
+}
+
+// TestHasMixedLineEndings pins the condition the finding-scoped line-ending fix
+// uses: it must match the parser's File.MixedLineEndings (sawLF && sawCRLF)
+// exactly, so a file mixes endings only when it carries both an LF-terminated
+// and a CRLF-terminated line. A file with uniform endings — all LF, all CRLF, or
+// all lone CR — is not mixed and so has no line-ending finding to fix.
+func TestHasMixedLineEndings(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"uniform lf", "A=1\nB=2\n", false},
+		{"uniform crlf", "A=1\r\nB=2\r\n", false},
+		{"uniform lone cr", "A=1\rB=2\r", false},
+		{"crlf and lf mixed", "A=1\r\nB=2\nC=3\r\n", true},
+		{"lf then crlf mixed", "A=1\nB=2\r\n", true},
+		{"lone cr with lf not mixed", "A=1\rB=2\n", false},
+		{"lone cr with crlf not mixed", "A=1\rB=2\r\n", false},
+		{"empty not mixed", "", false},
+		{"single unterminated line not mixed", "A=1", false},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			if got := envfile.HasMixedLineEndings([]byte(tc.in)); got != tc.want {
+				t.Fatalf("HasMixedLineEndings(%q) = %v, want %v", tc.in, got, tc.want)
 			}
 		})
 	}
