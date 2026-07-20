@@ -85,38 +85,65 @@ func TrimTrailingWhitespace(data []byte) []byte {
 // blank line. It is the fix half of the extra-blank-line rule. A line counts as
 // blank when it holds only spaces and tabs, matching the parser's IsBlank.
 //
-// Splitting on LF leaves a CR at the end of each line of a CRLF file, so the
-// blank check strips one trailing CR first; the stored line keeps its CR, so
-// retained lines rejoin with their CRLF endings intact.
+// It walks each line delimiter (LF, CRLF or a lone CR) the same way the lexer
+// does, so blank runs and line boundaries are recognized for every ending
+// style, and it preserves each retained line's delimiter bytes verbatim: a CRLF
+// file stays CRLF and a lone-CR file stays lone-CR. Splitting on LF alone would
+// see a lone-CR file as one line and collapse nothing; the full fix pipeline
+// runs NormalizeLineEndings first, so no CR reaches this transform there and the
+// composed output is unchanged. The CR handling matters only when this rule's
+// fix runs on its own under a scoped --fix.
 func CollapseBlankLines(data []byte) []byte {
-	lines := bytes.Split(data, []byte("\n"))
-	out := make([][]byte, 0, len(lines))
+	var out bytes.Buffer
 	prevBlank := false
-	for _, line := range lines {
-		if isBlankLine(bytes.TrimSuffix(line, []byte("\r"))) {
+	for i := 0; i < len(data); {
+		content, delim, next := nextRawLine(data, i)
+		i = next
+
+		if isBlankLine(content) {
 			if prevBlank {
+				// Drop the duplicate blank line entirely, delimiter included.
 				continue
 			}
 			prevBlank = true
 		} else {
 			prevBlank = false
 		}
-		out = append(out, line)
+		out.Write(content)
+		out.Write(delim)
 	}
-	return bytes.Join(out, []byte("\n"))
+	return out.Bytes()
 }
 
 // TrimFinalBlankLines drops trailing blank lines and leaves exactly one final
-// newline on non-empty content, returning empty bytes for an all-blank or empty
-// file. It is the fix half of the ending-blank-line rule.
+// line terminator on non-empty content, returning empty bytes for an all-blank
+// or empty file. It is the fix half of the ending-blank-line rule.
 //
-// Splitting on LF leaves a CR at the end of each line of a CRLF file, so the
-// blank check strips one trailing CR first; the stored line keeps its CR, so a
-// retained final line is written back with its CRLF ending intact.
+// It walks each line delimiter (LF, CRLF or a lone CR) the same way the lexer
+// does, so trailing blank lines are recognized for every ending style, and the
+// retained final terminator preserves the delimiter of the last kept content
+// line rather than hard-coding LF: a CRLF file keeps its CRLF and a lone-CR file
+// keeps its lone CR. A last content line with no delimiter of its own adopts the
+// file's prevailing line ending (the last delimited line's delimiter) so a
+// scoped fix on a CRLF file that merely lacks its final newline stays all-CRLF
+// instead of introducing a bare LF; with no delimiter anywhere it defaults to a
+// single LF. A lone CR that is the final byte of the input completes to CRLF so
+// the file ends with a lexer-recognized newline. The full fix pipeline runs
+// NormalizeLineEndings first, so no CR reaches this transform there and the
+// composed output is unchanged; the CR handling matters only under a scoped
+// --fix.
 func TrimFinalBlankLines(data []byte) []byte {
-	lines := bytes.Split(data, []byte("\n"))
+	type rawLine struct{ content, delim []byte }
+
+	var lines []rawLine
+	for i := 0; i < len(data); {
+		content, delim, next := nextRawLine(data, i)
+		i = next
+		lines = append(lines, rawLine{content: content, delim: delim})
+	}
+
 	end := len(lines)
-	for end > 0 && isBlankLine(bytes.TrimSuffix(lines[end-1], []byte("\r"))) {
+	for end > 0 && isBlankLine(lines[end-1].content) {
 		end--
 	}
 	if end == 0 {
@@ -124,11 +151,67 @@ func TrimFinalBlankLines(data []byte) []byte {
 	}
 
 	var buf bytes.Buffer
-	for _, line := range lines[:end] {
-		buf.Write(line)
-		buf.WriteByte('\n')
+	for j := 0; j < end; j++ {
+		buf.Write(lines[j].content)
+		if j < end-1 {
+			buf.Write(lines[j].delim)
+			continue
+		}
+
+		// Last retained content line: leave exactly one terminator.
+		delim := lines[j].delim
+		switch {
+		case len(delim) == 0:
+			// An unterminated final line adopts the file's prevailing line
+			// ending — the delimiter of the last delimited line — so a scoped
+			// fix on a CRLF file missing only its final newline stays all-CRLF
+			// rather than introducing a bare LF. With no delimiter anywhere
+			// there is no prevailing style, so default to a single LF.
+			terminator := []byte("\n")
+			for k := end - 2; k >= 0; k-- {
+				if len(lines[k].delim) > 0 {
+					terminator = lines[k].delim
+					break
+				}
+			}
+			buf.Write(terminator)
+		case bytes.Equal(delim, []byte("\r")) && j == len(lines)-1:
+			// A lone CR that is the final byte of the input is a dangling
+			// half of a CRLF; complete it so the file ends with a newline
+			// the lexer recognizes. A lone CR that instead separated this
+			// line from a dropped blank run keeps its lone CR (below).
+			buf.WriteByte('\r')
+			buf.WriteByte('\n')
+		default:
+			buf.Write(delim)
+		}
 	}
 	return buf.Bytes()
+}
+
+// nextRawLine returns the content and delimiter of the line starting at start,
+// plus the index of the next line. content runs up to the next LF or CR and
+// excludes the delimiter; delim is the CRLF, lone CR or LF that ends the line,
+// or empty when the line is the final unterminated one. This mirrors the lexer's
+// line model and TrimTrailingWhitespace's delimiter-preserving walk so the blank
+// fixes stay in lock-step with what the rules report.
+func nextRawLine(data []byte, start int) (content, delim []byte, next int) {
+	i := start
+	for i < len(data) && data[i] != '\n' && data[i] != '\r' {
+		i++
+	}
+	content = data[start:i]
+
+	if i < len(data) {
+		if data[i] == '\r' && i+1 < len(data) && data[i+1] == '\n' {
+			delim = data[i : i+2]
+			i += 2
+		} else {
+			delim = data[i : i+1]
+			i++
+		}
+	}
+	return content, delim, i
 }
 
 // isBlankLine reports whether a raw line holds only spaces and tabs, matching

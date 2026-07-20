@@ -141,6 +141,107 @@ func TestCollapseBlankLinesPreservesCRLF(t *testing.T) {
 	}
 }
 
+// TestCollapseBlankLinesPreservesLoneCR pins that the transform recognizes
+// blank lines and line boundaries in a lone-CR file (CR as the only delimiter,
+// no LF to split on) and collapses each run to one blank line, while retained
+// lines keep their lone CR so the output preserves the lone-CR style byte for
+// byte. Before the delimiter-complete walk, splitting on LF alone saw the whole
+// file as one line and collapsed nothing, so a scoped --fix left the finding
+// unresolved.
+func TestCollapseBlankLinesPreservesLoneCR(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "consecutive blank cr lines collapse to one",
+			in:   "KEY=1\r\r\rNEXT=2\r",
+			want: "KEY=1\r\rNEXT=2\r",
+		},
+		{
+			name: "whitespace-only blank cr lines collapse to one",
+			in:   "A=1\r  \r\t\rB=2\r",
+			want: "A=1\r  \rB=2\r",
+		},
+		{
+			name: "single blank cr line kept",
+			in:   "A=1\r\rB=2\r",
+			want: "A=1\r\rB=2\r",
+		},
+		{
+			name: "crlf blank lines still collapse",
+			in:   "A=1\r\n\r\n\r\nB=2\r\n",
+			want: "A=1\r\n\r\nB=2\r\n",
+		},
+		{
+			name: "lf blank lines still collapse",
+			in:   "A=1\n\n\nB=2\n",
+			want: "A=1\n\nB=2\n",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got := envfile.CollapseBlankLines([]byte(tc.in))
+			if string(got) != tc.want {
+				t.Fatalf("CollapseBlankLines(%q) = %q, want %q", tc.in, string(got), tc.want)
+			}
+		})
+	}
+}
+
+// TestTrimFinalBlankLinesPreservesLoneCR pins that the transform recognizes
+// trailing blank lines in a lone-CR file (CR as the only delimiter, no LF to
+// split on) and trims them, leaving exactly one lone-CR terminator on the last
+// retained content line rather than injecting an LF. Before the delimiter-
+// complete walk, splitting on LF alone saw the whole file as one line and
+// trimmed nothing, so a scoped --fix left the finding unresolved.
+func TestTrimFinalBlankLinesPreservesLoneCR(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "trailing blank cr lines trimmed, lone cr preserved",
+			in:   "A=1\r\r\r",
+			want: "A=1\r",
+		},
+		{
+			name: "trailing whitespace-only blank cr lines trimmed",
+			in:   "A=1\r  \r\t\r",
+			want: "A=1\r",
+		},
+		{
+			name: "all-blank cr file empties",
+			in:   "\r  \r\t\r",
+			want: "",
+		},
+		{
+			name: "crlf trailing blank lines still trimmed",
+			in:   "A=1\r\n\r\n\r\n",
+			want: "A=1\r\n",
+		},
+		{
+			name: "lf trailing blank lines still trimmed",
+			in:   "A=1\n\n\n",
+			want: "A=1\n",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			got := envfile.TrimFinalBlankLines([]byte(tc.in))
+			if string(got) != tc.want {
+				t.Fatalf("TrimFinalBlankLines(%q) = %q, want %q", tc.in, string(got), tc.want)
+			}
+		})
+	}
+}
+
 // TestTrimFinalBlankLinesPreservesCRLF pins that the transform recognizes
 // trailing blank lines in a CRLF file (where splitting on LF leaves a CR on
 // each segment) and trims them to exactly one final newline, while a retained
@@ -165,6 +266,21 @@ func TestTrimFinalBlankLinesPreservesCRLF(t *testing.T) {
 			name: "missing final newline added, crlf kept",
 			in:   "A=1\r\nB=2\r",
 			want: "A=1\r\nB=2\r\n",
+		},
+		{
+			name: "unterminated final line adopts prevailing crlf",
+			in:   "A=1\r\nB=2",
+			want: "A=1\r\nB=2\r\n",
+		},
+		{
+			name: "unterminated final line adopts prevailing lf",
+			in:   "A=1\nB=2",
+			want: "A=1\nB=2\n",
+		},
+		{
+			name: "single unterminated line defaults to lf",
+			in:   "A=1",
+			want: "A=1\n",
 		},
 		{
 			name: "retained crlf content line byte exact",
