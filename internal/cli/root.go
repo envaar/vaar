@@ -59,5 +59,5 @@ func Execute() int {
 }
 
 func writeCLIError(w io.Writer, err error) {
-	fmt.Fprintf(w, "error: %v\n", err)
+	_, _ = fmt.Fprintf(w, "error: %v\n", err)
 }
