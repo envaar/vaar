@@ -7,7 +7,7 @@ package cli
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -213,6 +213,35 @@ func TestDiffCommandReportsOperationalFailures(t *testing.T) {
 	}
 }
 
+func TestDiffCommandRejectsNonRegularInput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("non-regular /dev/null fixture is Unix-specific")
+	}
+
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+
+	stdout, stderr, err := runDiffCommandWithStreams(t, root, ".env", "/dev/null")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	wantText := "/dev/null is not a regular file, expected a dotenv file"
+	if !strings.Contains(err.Error(), wantText) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("expected no stdout, got %q", stdout)
+	}
+	if stderr != "error: "+wantText+"\n" {
+		t.Fatalf("unexpected stderr: %q", stderr)
+	}
+}
+
 func TestDiffCommandReportsUnreadableFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("permission-denied fixtures are not portable on windows")
@@ -234,6 +263,10 @@ func TestDiffCommandReportsUnreadableFile(t *testing.T) {
 	if err := os.Chmod(locked, 0); err != nil {
 		t.Fatalf("chmod failed: %v", err)
 	}
+	if file, err := os.Open(locked); err == nil {
+		_ = file.Close()
+		t.Skip("permission-denied fixture remains readable, likely running with elevated privileges")
+	}
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, ".env", ".env.example")
 	if err == nil {
@@ -253,6 +286,60 @@ func TestDiffCommandReportsUnreadableFile(t *testing.T) {
 	}
 }
 
+func TestDiffCommandPropagatesStdoutWriteFailures(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\nCOMMON=local\n"), 0o644); err != nil {
+		t.Fatalf("write left failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("BAR=example\nCOMMON=example\n"), 0o644); err != nil {
+		t.Fatalf("write right failed: %v", err)
+	}
+
+	withWorkingDir(t, root)
+
+	cmd := newRootCmd()
+	cmd.SetOut(failingWriter{})
+	cmd.SetArgs([]string{"diff", ".env", ".env.example"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	if !strings.Contains(err.Error(), "writing diff output failed") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDiffCommandPropagatesSuccessStdoutWriteFailures(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
+		t.Fatalf("write left failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("FOO=example\n"), 0o644); err != nil {
+		t.Fatalf("write right failed: %v", err)
+	}
+
+	withWorkingDir(t, root)
+
+	cmd := newRootCmd()
+	cmd.SetOut(failingWriter{})
+	cmd.SetArgs([]string{"diff", ".env", ".env.example"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := ExitCode(err); got != ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, ExitInternal)
+	}
+	if !strings.Contains(err.Error(), "writing diff output failed") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func runDiffCommandWithStreams(t *testing.T, root string, args ...string) (string, string, error) {
 	t.Helper()
 
@@ -266,7 +353,13 @@ func runDiffCommandWithStreams(t *testing.T, root string, args ...string) (strin
 
 	err := cmd.Execute()
 	if err != nil && !IsExitError(err) {
-		fmt.Fprintf(&stderr, "error: %v\n", err)
+		writeCLIError(&stderr, err)
 	}
 	return stdout.String(), stderr.String(), err
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write(_ []byte) (int, error) {
+	return 0, errors.New("write failed")
 }

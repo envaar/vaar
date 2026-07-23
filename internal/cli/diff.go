@@ -39,15 +39,21 @@ func newDiffCmd() *cobra.Command {
 			}
 
 			if len(res.MissingFromLeft) == 0 && len(res.MissingFromRight) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No key differences found")
+				if err := writeDiffLine(cmd, "No key differences found"); err != nil {
+					return err
+				}
 				return nil
 			}
 
 			if len(res.MissingFromLeft) > 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), missingKeysLine(leftPath, res.MissingFromLeft))
+				if err := writeDiffLine(cmd, missingKeysLine(leftPath, res.MissingFromLeft)); err != nil {
+					return err
+				}
 			}
 			if len(res.MissingFromRight) > 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), missingKeysLine(rightPath, res.MissingFromRight))
+				if err := writeDiffLine(cmd, missingKeysLine(rightPath, res.MissingFromRight)); err != nil {
+					return err
+				}
 			}
 
 			return ExitError{Code: ExitFindings}
@@ -69,6 +75,9 @@ func readDiffFile(path string) ([]byte, error) {
 		if info.IsDir() {
 			return nil, NewToolError(fmt.Sprintf("%s is a directory, expected a dotenv file", path), nil)
 		}
+		if !info.Mode().IsRegular() {
+			return nil, NewToolError(fmt.Sprintf("%s is not a regular file, expected a dotenv file", path), nil)
+		}
 	case os.IsNotExist(err):
 		return nil, NewToolError(fmt.Sprintf("reading %s: file does not exist", path), nil)
 	default:
@@ -80,6 +89,13 @@ func readDiffFile(path string) ([]byte, error) {
 		return nil, NewToolError(fmt.Sprintf("reading %s", path), err)
 	}
 	return data, nil
+}
+
+func writeDiffLine(cmd *cobra.Command, line string) error {
+	if _, err := fmt.Fprintln(cmd.OutOrStdout(), line); err != nil {
+		return NewToolError("writing diff output failed", err)
+	}
+	return nil
 }
 
 func missingKeysLine(path string, keys []string) string {
