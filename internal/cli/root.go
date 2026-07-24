@@ -9,6 +9,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -49,10 +50,14 @@ func Execute() int {
 
 	if err := cmd.Execute(); err != nil {
 		if !IsExitError(err) {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			writeCLIError(os.Stderr, err)
 		}
 		return ExitCode(err)
 	}
 
 	return ExitOK
+}
+
+func writeCLIError(w io.Writer, err error) {
+	_, _ = fmt.Fprintf(w, "error: %v\n", err)
 }

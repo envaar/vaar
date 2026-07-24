@@ -66,7 +66,7 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 
 	changed := false
 	if opts.Fix {
-		changed, err = ApplyFixes(paths)
+		changed, err = ApplyFixes(r.rules, paths)
 		if err != nil {
 			return Result{}, err
 		}

@@ -37,7 +37,7 @@ Use --only to narrow the selected rules, --skip to remove rules after
 selection, --target to lint one file and --target-dir to discover files under
 one directory. --output writes JSON to a file instead of stdout and requires
 --json. Use --list-rules to print every registered rule with its description
-without running anything:
+and whether --fix repairs it, without running anything:
 
   vaar lint --only=duplicate-key
   vaar lint --only=duplicate-key --only=invalid-key-name
@@ -143,7 +143,7 @@ Use either --target or --target-dir, not both.`,
 	flags.StringVar(&selection.TargetDir, "target-dir", "", "Recursively lint dotenv files under the specified directory.")
 	flags.StringArrayVar(&selection.OnlyRules, "only", nil, "Run only the specified rule ID. Can be repeated.")
 	flags.StringArrayVar(&selection.SkipRules, "skip", nil, "Skip the specified rule ID. Can be repeated.")
-	flags.BoolVar(&lintListRules, "list-rules", false, "List every registered rule and its description, then exit")
+	flags.BoolVar(&lintListRules, "list-rules", false, "List every registered rule, whether --fix repairs it and its description, then exit")
 
 	registerLintFlagCompletions(cmd)
 
@@ -178,8 +178,8 @@ func firstListRulesConflict(selection lint.Options, fix, json bool, output strin
 }
 
 // writeRuleList prints the registered rules in alphabetical order with aligned
-// NAME and DESCRIPTION columns. Fixability metadata is not part of the Rule
-// interface, so no FIXABLE column is emitted.
+// NAME, FIXABLE and DESCRIPTION columns. Fixability comes from the optional
+// lint.FixableRule marker, so rules that do not carry a fix half read as "no".
 func writeRuleList(w io.Writer, all []lint.Rule) error {
 	sorted := make([]lint.Rule, len(all))
 	copy(sorted, all)
@@ -193,14 +193,23 @@ func writeRuleList(w io.Writer, all []lint.Rule) error {
 			nameWidth = n
 		}
 	}
+	fixableWidth := len("FIXABLE")
 
-	if _, err := fmt.Fprintf(w, "%-*s  DESCRIPTION\n", nameWidth, "NAME"); err != nil {
+	if _, err := fmt.Fprintf(w, "%-*s  %-*s  DESCRIPTION\n", nameWidth, "NAME", fixableWidth, "FIXABLE"); err != nil {
 		return err
 	}
 	for _, rule := range sorted {
-		if _, err := fmt.Fprintf(w, "%-*s  %s\n", nameWidth, rule.ID(), rule.Description()); err != nil {
+		if _, err := fmt.Fprintf(w, "%-*s  %-*s  %s\n", nameWidth, rule.ID(), fixableWidth, fixableLabel(rule), rule.Description()); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// fixableLabel renders the FIXABLE column value for one rule.
+func fixableLabel(rule lint.Rule) string {
+	if lint.IsFixable(rule) {
+		return "yes"
+	}
+	return "no"
 }

@@ -27,7 +27,7 @@ Trim the trailing whitespace.
 ## Bad example
 
 ```dotenv
-KEY=value
+KEY=value\s
 ```
 
 ## Good example
@@ -35,3 +35,22 @@ KEY=value
 ```dotenv
 KEY=value
 ```
+
+## Example output
+
+Linting the bad example above, saved as `.env`:
+
+```bash
+vaar lint --only=trailing-whitespace
+```
+
+Bad Example Produces:
+
+```text
+warn trailing-whitespace .env:1 line has trailing whitespace
+```
+
+> [!NOTE]
+> `\s` above stands for an actual trailing space, which Markdown cannot show.
+> A file containing the literal two characters `\s` has no trailing
+> whitespace and does not produce this finding.

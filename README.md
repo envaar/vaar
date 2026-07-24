@@ -146,7 +146,7 @@ vaar lint --target=.env.staging
 vaar lint --target-dir=src
 ```
 
-To list every registered rule with its description:
+To list every registered rule, whether `--fix` repairs it and its description:
 
 ```bash
 vaar lint --list-rules
