@@ -22,6 +22,7 @@ func All() []lint.Rule {
 		deterministic.NewLeadingCharacter(),
 		deterministic.NewQuoteCharacter(),
 		deterministic.NewValueWithoutQuotes(),
+		deterministic.NewSubstitutionKey(),
 		deterministic.NewSpaceCharacter(),
 		deterministic.NewTrailingWhitespace(),
 		deterministic.NewEndingBlankLine(),
