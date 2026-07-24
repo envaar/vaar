@@ -18,11 +18,11 @@ The rule reports:
 - `${KEY` missing its closing `}`
 - unbraced substitutions like `$KEY}` with an unmatched closing `}`
 - `${}` with an empty key
-- `${key-name}` when the key is not a portable environment variable name
 
 > [!NOTE]
 > Single-quoted values are literal text and are not scanned. Inline comments
-> recognized by the parser are also ignored.
+> recognized by the parser are also ignored. Unsupported shell expansion forms
+> such as `${KEY:-fallback}` are ignored.
 
 ## Why it matters
 

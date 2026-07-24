@@ -28,6 +28,9 @@ func TestSubstitutionKeyAcceptsValidForms(t *testing.T) {
 			"LITERAL_BRACE=value}",
 			"JSON_VALUE={\"enabled\":true}",
 			"LITERAL_DOLLAR=$",
+			"UNSUPPORTED_DEFAULT=${KEY:-fallback}",
+			"UNSUPPORTED_REQUIRED=${KEY:?required}",
+			"UNSUPPORTED_NESTED=${OUTER:-${INNER}}",
 			"PLAIN_VALUE=value",
 		}, "\n") + "\n"),
 		wantCount: 0,
@@ -40,7 +43,6 @@ func TestSubstitutionKeyReportsMalformedSubstitutions(t *testing.T) {
 		"FOO=\"$BAR}\"",
 		"EMPTY_REFERENCE=${}",
 		"EXTRA_CLOSE=${BAR}}",
-		"INVALID_BRACED=${1BAR}",
 	}, "\n")+"\n")
 
 	assertSubstitutionFindings(t, findings, []expectedFinding{
@@ -59,10 +61,6 @@ func TestSubstitutionKeyReportsMalformedSubstitutions(t *testing.T) {
 		{
 			line:        4,
 			messagePart: `substitution "${BAR}}" contains an unmatched closing "}"`,
-		},
-		{
-			line:        5,
-			messagePart: `substitution "${1BAR}" does not use a portable env key name`,
 		},
 	})
 }

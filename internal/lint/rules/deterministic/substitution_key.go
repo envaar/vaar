@@ -15,14 +15,14 @@ import (
 
 type substitutionKeyRule struct{}
 
-// NewSubstitutionKey returns a rule that flags malformed env-var
+// NewSubstitutionKey returns a rule that flags malformed $KEY and ${KEY}
 // substitutions inside assignment values.
 func NewSubstitutionKey() lint.Rule { return substitutionKeyRule{} }
 
 func (substitutionKeyRule) ID() string { return "substitution-key" }
 
 func (substitutionKeyRule) Description() string {
-	return "flags malformed env-var substitution syntax inside values"
+	return "flags malformed $KEY and ${KEY} substitution syntax inside values"
 }
 
 func (substitutionKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
@@ -143,14 +143,7 @@ func scanBracedSubstitution(path string, line int, value string, start int) (*li
 	}
 
 	if !validKeyName(key) {
-		finding := finding(
-			substitutionKeyRule{}.ID(),
-			lint.SeverityError,
-			path,
-			line,
-			fmt.Sprintf("substitution %q does not use a portable env key name", token),
-		)
-		return &finding, closeIdx + 1
+		return nil, closeIdx + 1
 	}
 
 	if closeIdx+1 < len(value) && value[closeIdx+1] == '}' {
