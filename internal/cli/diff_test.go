@@ -207,8 +207,8 @@ func TestDiffCommandJSONMatchingFiles(t *testing.T) {
 	root := t.TempDir()
 	left := filepath.Join(root, ".env")
 	right := filepath.Join(root, ".env.example")
-	mustWriteFile(t, left, "FOO=123\nCOMMON=local-secret\n")
-	mustWriteFile(t, right, "COMMON=example-secret\nFOO=456\n")
+	mustWriteFile(t, left, "FOO=left-token\nCOMMON=local-secret\n")
+	mustWriteFile(t, right, "COMMON=example-secret\nFOO=right-token\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, left, right, "--json")
 	if err != nil {
@@ -234,7 +234,7 @@ func TestDiffCommandJSONMatchingFiles(t *testing.T) {
 	if output.Different {
 		t.Fatal("expected different=false")
 	}
-	for _, value := range []string{"123", "456", "local-secret", "example-secret"} {
+	for _, value := range []string{"left-token", "right-token", "local-secret", "example-secret"} {
 		if strings.Contains(stdout, value) {
 			t.Fatalf("JSON leaked value %q in %q", value, stdout)
 		}
