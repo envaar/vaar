@@ -25,6 +25,11 @@ type Result struct {
 	MissingFromRight []string
 }
 
+// HasDifferences reports whether either file is missing keys from the other.
+func (r Result) HasDifferences() bool {
+	return len(r.MissingFromLeft) > 0 || len(r.MissingFromRight) > 0
+}
+
 // Compare parses two dotenv inputs and compares assignment key presence only.
 func Compare(leftPath string, leftData []byte, rightPath string, rightData []byte) (Result, error) {
 	left, err := envfile.Parse(leftPath, leftData)

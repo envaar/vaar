@@ -155,6 +155,53 @@ func TestCompareOnlyIncludesAssignmentKeys(t *testing.T) {
 	assertResult(t, result, []string{}, []string{})
 }
 
+func TestResultHasDifferences(t *testing.T) {
+	tests := []struct {
+		name   string
+		result Result
+		want   bool
+	}{
+		{
+			name: "no missing keys",
+			result: Result{
+				MissingFromLeft:  []string{},
+				MissingFromRight: []string{},
+			},
+			want: false,
+		},
+		{
+			name: "missing from left",
+			result: Result{
+				MissingFromLeft: []string{"BAR"},
+			},
+			want: true,
+		},
+		{
+			name: "missing from right",
+			result: Result{
+				MissingFromRight: []string{"FOO"},
+			},
+			want: true,
+		},
+		{
+			name: "missing from both files",
+			result: Result{
+				MissingFromLeft:  []string{"BAR"},
+				MissingFromRight: []string{"FOO"},
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.result.HasDifferences(); got != tc.want {
+				t.Fatalf("unexpected HasDifferences result: got %v want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestCompareFilesReusesParsedFiles(t *testing.T) {
 	left, err := envfile.Parse("left.env", []byte("FOO=left\n"))
 	if err != nil {

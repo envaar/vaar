@@ -54,7 +54,7 @@ func newDiffCmd() *cobra.Command {
 				return NewToolError("comparing dotenv files", err)
 			}
 
-			different := diffHasDifferences(result)
+			different := result.HasDifferences()
 
 			if jsonOutput {
 				if err := writeDiffJSON(cmd, result, different); err != nil {
@@ -111,7 +111,7 @@ func readDiffFile(path string) ([]byte, error) {
 }
 
 func writeDiffText(cmd *cobra.Command, result diff.Result) error {
-	if !diffHasDifferences(result) {
+	if !result.HasDifferences() {
 		return writeDiffLine(cmd, "No key differences found")
 	}
 
@@ -151,10 +151,6 @@ func writeDiffLine(cmd *cobra.Command, line string) error {
 		return NewToolError("writing diff output failed", err)
 	}
 	return nil
-}
-
-func diffHasDifferences(result diff.Result) bool {
-	return len(result.MissingFromLeft) > 0 || len(result.MissingFromRight) > 0
 }
 
 func missingKeysLine(path string, keys []string) string {
