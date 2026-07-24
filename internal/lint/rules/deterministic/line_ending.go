@@ -19,8 +19,17 @@ func NewLineEnding() lint.Rule { return lineEndingRule{} }
 func (lineEndingRule) ID() string          { return "line-ending" }
 func (lineEndingRule) Description() string { return "flags files with mixed CRLF and LF line endings" }
 
-// Fix converts CRLF and lone CR line endings to LF so the file uses one style.
-func (lineEndingRule) Fix(data []byte) []byte { return envfile.NormalizeLineEndings(data) }
+// Fix converts CRLF and lone CR line endings to LF so the file uses one style,
+// but only for a file that actually mixes CRLF and LF — the same condition Run
+// uses to raise a finding. A file with uniform endings (all CRLF, all LF, or all
+// lone CR) has no line-ending finding, so a scoped --fix leaves it byte for byte
+// unchanged instead of blindly forcing LF on bytes this rule does not own.
+func (lineEndingRule) Fix(data []byte) []byte {
+	if !envfile.HasMixedLineEndings(data) {
+		return data
+	}
+	return envfile.NormalizeLineEndings(data)
+}
 
 func (lineEndingRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)

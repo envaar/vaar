@@ -31,6 +31,8 @@ Lint also comes with additional flags such as:
 
 Applies only the safe formatting fixes that can be made deterministically. Vaar reports the findings from the original file and marks findings that disappeared after the fix with `[fixed]`. It then reports any findings that remain in the post-fix file. The exit code is based on the remaining findings, so a file with only repaired findings exits successfully.
 
+`--fix` is affected by `--only` and `--skip`. It applies the supported fixes of only the selected rules, so `vaar lint --fix --only=trailing-whitespace` repairs trailing whitespace while leaving blank-line and other formatting untouched, and `vaar lint --fix --skip=trailing-whitespace` repairs everything except trailing whitespace. Plain `vaar lint --fix` applies every rule's fix. Selecting a rule with no fix half (its `FIXABLE` column reads `no`) repairs nothing and is not an error. That rule's finding simply remains in the report.
+
 ### `--json`
 
 Renders findings as a JSON output. To be used when a CI job, editor integration or wrapper script needs structured output instead of text.
@@ -77,6 +79,7 @@ Useful for selecting a specific rule or a specific list of rules to run.
 - The flag can be repeated to specify each rule to be checked.
 - Unknown rule names are rejected before linting starts.
 - Listing the same rule more than once does not run it multiple times.
+- Combined with `--fix`, fixing is limited to the selected rules.
 
 Examples:
 
@@ -91,6 +94,7 @@ Useful for selecting a specific rule or a specific list of rules to be skipped.
 
 - The flag can be repeated to specify each rule to be skipped.
 - Unknown rule names are rejected before linting starts.
+- Combined with `--fix`, fixing occurs on every supported safe rule fix except the rules selected to be skipped.
 
 Examples:
 
@@ -103,7 +107,7 @@ vaar lint --skip=trailing-whitespace --skip=extra-blank-line
 
 Prints every registered rule in alphabetical order with its canonical name, whether `--fix` repairs it and a concise description, then exits successfully. This is an informational mode: it does not discover dotenv files, run rules or require a repository, so it works from any directory.
 
-The output uses NAME, FIXABLE and DESCRIPTION columns. The FIXABLE column reads `yes` when a rule carries a fix half that the safe `--fix` pass composes and `no` otherwise. Fixability is intrinsic to the rule, and a drift test pins each `yes`/`no` against the actual fix pass, so the column cannot silently disagree with what `--fix` does.
+The output uses NAME, FIXABLE and DESCRIPTION columns. The FIXABLE column reads `yes` when a rule has a safe fix that can be applied using `--fix`, and `no` otherwise.
 
 `--list-rules` cannot be combined with execution or output flags: `--only`, `--skip`, `--fix`, `--target`, `--target-dir`, `--output` or `--json`; doing so returns a usage error naming the conflicting flag.
 

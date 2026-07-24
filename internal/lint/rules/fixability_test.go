@@ -177,18 +177,50 @@ func TestEveryRuleHasFixabilityCoverage(t *testing.T) {
 }
 
 // TestFixDataMatchesLegacyNormalize pins the load-bearing invariant: composing
-// every rule's fix half reproduces the original whole-file Normalize exactly.
-// legacyNormalize is a frozen copy of the pre-decomposition implementation, so
-// the comparison is against real historical behavior, not a reimplementation.
+// every rule's fix half reproduces the original whole-file Normalize exactly,
+// EXCEPT where a fix half is now deliberately scoped to its own finding and so
+// intentionally diverges from the blunt legacy pass. legacyNormalize is a frozen
+// copy of the pre-decomposition implementation, so the comparison is against real
+// historical behavior, not a reimplementation.
+//
+// The divergences are the two maintainer-approved scope corrections:
+//
+//   - line-ending: its fix now runs only when the file actually MIXES CRLF and
+//     LF (the same condition the rule reports). A file with uniform endings — all
+//     CRLF or all lone CR — has no line-ending finding, so a scoped --fix leaves
+//     its endings untouched instead of blindly forcing LF the way legacy did.
+//   - trailing-whitespace: its fix now empties a line only when the line is
+//     nothing but spaces and tabs (what the rule models). A line whose only
+//     "blank" byte is a vertical tab or form feed is not a trailing-whitespace
+//     finding, so it is kept (trailing spaces/tabs trimmed) rather than emptied.
+//
+// The affected corpus cases therefore assert the new finding-scoped bytes rather
+// than the legacy LF-forcing / whitespace-emptying output.
 func TestFixDataMatchesLegacyNormalize(t *testing.T) {
 	all := rules.All()
+	diverged := map[string][]byte{
+		// line-ending scoped to mixed files: uniform endings pass through.
+		"crlf":              []byte("A=1\r\nB=2\r\n"),
+		"lone-cr":           []byte("A=1\rB=2\r"),
+		"tabs-and-crlf":     []byte("KEY=value\r\n\r\nNEXT=x\r\n"),
+		"bom-crlf-trailing": []byte("KEY=value\r\n\r\nFOO=bar\r\n"),
+		// trailing-whitespace scoped to spaces/tabs: vertical-tab and form-feed
+		// lines keep their non-space/tab content instead of being emptied.
+		"vertical-tab-blank": []byte("A=1\n  \v\nB=2\n"),
+		"form-feed-blank":    []byte("A=1\n\f\nB=2\n"),
+	}
 	for _, tc := range equivalenceCorpus(t) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			want := legacyNormalize(tc.data)
+			if override, ok := diverged[tc.name]; ok {
+				// This case intentionally diverges from legacy because a fix half
+				// is now scoped to its finding; assert the new correct bytes.
+				want = override
+			}
 			got := lint.FixData(all, tc.data)
 			if string(got) != string(want) {
-				t.Fatalf("FixData disagrees with legacy Normalize on %q\ninput %q\ngot   %q\nwant  %q",
+				t.Fatalf("FixData disagrees with expected on %q\ninput %q\ngot   %q\nwant  %q",
 					tc.name, tc.data, got, want)
 			}
 		})
