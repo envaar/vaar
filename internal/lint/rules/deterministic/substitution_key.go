@@ -25,6 +25,7 @@ func (substitutionKeyRule) Description() string {
 	return "flags malformed $KEY and ${KEY} substitution syntax inside values"
 }
 
+// Run scans assignment values for malformed supported substitution syntax.
 func (substitutionKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
 
@@ -53,6 +54,7 @@ func (substitutionKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	return findings, nil
 }
 
+// scanSubstitutionFindings reports malformed substitutions found in one value.
 func scanSubstitutionFindings(path string, line int, value string) []lint.Finding {
 	findings := make([]lint.Finding, 0)
 
@@ -114,6 +116,7 @@ func scanSubstitutionFindings(path string, line int, value string) []lint.Findin
 	return findings
 }
 
+// scanBracedSubstitution validates one ${KEY} candidate starting at start.
 func scanBracedSubstitution(path string, line int, value string, start int) (*lint.Finding, int) {
 	closeOffset := strings.IndexByte(value[start+2:], '}')
 	if closeOffset < 0 {
@@ -164,10 +167,12 @@ func scanBracedSubstitution(path string, line int, value string, start int) (*li
 	return nil, closeIdx + 1
 }
 
+// isPortableKeyStart reports whether b can begin a supported key reference.
 func isPortableKeyStart(b byte) bool {
 	return b == '_' || (b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z')
 }
 
+// isPortableKeyContinue reports whether b can continue a supported key reference.
 func isPortableKeyContinue(b byte) bool {
 	return isPortableKeyStart(b) || (b >= '0' && b <= '9')
 }

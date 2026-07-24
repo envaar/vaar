@@ -105,6 +105,7 @@ type expectedFinding struct {
 	messagePart string
 }
 
+// runSubstitutionKey parses input and runs only the substitution-key rule.
 func runSubstitutionKey(t *testing.T, input string) []lint.Finding {
 	t.Helper()
 
@@ -123,6 +124,7 @@ func runSubstitutionKey(t *testing.T, input string) []lint.Finding {
 	return findings
 }
 
+// assertSubstitutionFindings checks the stable fields this rule owns.
 func assertSubstitutionFindings(t *testing.T, findings []lint.Finding, want []expectedFinding) {
 	t.Helper()
 
