@@ -59,6 +59,7 @@ func fixabilityFixtures() map[string][]byte {
 		"line-ending":          []byte("KEY=one\r\nKEY2=two\n"),
 		"quote-character":      []byte("KEY=\"broken\n"),
 		"space-character":      []byte("KEY = value\n"),
+		"substitution-key":     []byte("BROKEN=${BAR\n"),
 		"trailing-whitespace":  []byte("KEY=value  \n"),
 		"value-without-key":    []byte("=supersecret-token-123\n"),
 		"value-without-quotes": []byte("FOO=BAR BAZ\n"),
