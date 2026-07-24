@@ -19,12 +19,8 @@ import (
 
 func TestDiffCommandReportsDifferencesForRelativePaths(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\nCOMMON=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("BAR=example\nCOMMON=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\nCOMMON=local\n")
+	mustWriteFile(t, filepath.Join(root, ".env.example"), "BAR=example\nCOMMON=example\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, ".env", ".env.example")
 	if err == nil {
@@ -46,12 +42,8 @@ func TestDiffCommandReportsDifferencesForAbsolutePaths(t *testing.T) {
 	root := t.TempDir()
 	left := filepath.Join(root, "left.env")
 	right := filepath.Join(root, "right.env")
-	if err := os.WriteFile(left, []byte("DEBUG=true\nFOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(right, []byte("DATABASE_URL=postgres://example\nBAR=example\nBAZ=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, left, "DEBUG=true\nFOO=local\n")
+	mustWriteFile(t, right, "DATABASE_URL=postgres://example\nBAR=example\nBAZ=example\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, left, right)
 	if err == nil {
@@ -74,12 +66,8 @@ func TestDiffCommandSupportsPathsContainingSpaces(t *testing.T) {
 	root := t.TempDir()
 	left := filepath.Join(root, "local env")
 	right := filepath.Join(root, "example env")
-	if err := os.WriteFile(left, []byte("FOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(right, []byte("BAR=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, left, "FOO=local\n")
+	mustWriteFile(t, right, "BAR=example\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, "local env", "example env")
 	if err == nil {
@@ -99,12 +87,8 @@ func TestDiffCommandSupportsPathsContainingSpaces(t *testing.T) {
 
 func TestDiffCommandMatchingFilesExitZero(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\nCOMMON=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("COMMON=example\nFOO=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\nCOMMON=local\n")
+	mustWriteFile(t, filepath.Join(root, ".env.example"), "COMMON=example\nFOO=example\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, ".env", ".env.example")
 	if err != nil {
@@ -123,12 +107,8 @@ func TestDiffCommandMatchingFilesExitZero(t *testing.T) {
 
 func TestDiffCommandQuietSuppressesDifferenceOutput(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\nCOMMON=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("BAR=example\nCOMMON=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\nCOMMON=local\n")
+	mustWriteFile(t, filepath.Join(root, ".env.example"), "BAR=example\nCOMMON=example\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, ".env", ".env.example", "--quiet")
 	if err == nil {
@@ -147,12 +127,8 @@ func TestDiffCommandQuietSuppressesDifferenceOutput(t *testing.T) {
 
 func TestDiffCommandQuietSuppressesSuccessOutput(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("FOO=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\n")
+	mustWriteFile(t, filepath.Join(root, ".env.example"), "FOO=example\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, ".env", ".env.example", "--quiet")
 	if err != nil {
@@ -171,9 +147,7 @@ func TestDiffCommandQuietSuppressesSuccessOutput(t *testing.T) {
 
 func TestDiffCommandQuietStillReportsOperationalFailures(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, ".env", ".env.example", "--quiet")
 	if err == nil {
@@ -195,12 +169,8 @@ func TestDiffCommandJSONWithDifferences(t *testing.T) {
 	root := t.TempDir()
 	left := filepath.Join(root, ".env")
 	right := filepath.Join(root, ".env.example")
-	if err := os.WriteFile(left, []byte("ZOO=left-secret\nFOO=left-token\nCOMMON=left\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(right, []byte("BAR=right-value\nAAA=right-secret\nCOMMON=right\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, left, "ZOO=left-secret\nFOO=left-token\nCOMMON=left\n")
+	mustWriteFile(t, right, "BAR=right-value\nAAA=right-secret\nCOMMON=right\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, left, right, "--json")
 	if err == nil {
@@ -237,12 +207,8 @@ func TestDiffCommandJSONMatchingFiles(t *testing.T) {
 	root := t.TempDir()
 	left := filepath.Join(root, ".env")
 	right := filepath.Join(root, ".env.example")
-	if err := os.WriteFile(left, []byte("FOO=123\nCOMMON=local-secret\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(right, []byte("COMMON=example-secret\nFOO=456\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, left, "FOO=123\nCOMMON=local-secret\n")
+	mustWriteFile(t, right, "COMMON=example-secret\nFOO=456\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, left, right, "--json")
 	if err != nil {
@@ -298,12 +264,8 @@ func TestDiffCommandRejectsQuietWithJSON(t *testing.T) {
 
 func TestDiffCommandRejectsWrongArgumentCount(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("FOO=example\n"), 0o644); err != nil {
-		t.Fatalf("write failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\n")
+	mustWriteFile(t, filepath.Join(root, ".env.example"), "FOO=example\n")
 
 	tests := []struct {
 		name string
@@ -343,9 +305,7 @@ func TestDiffCommandRejectsWrongArgumentCount(t *testing.T) {
 
 func TestDiffCommandReportsOperationalFailures(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\n")
 	if err := os.Mkdir(filepath.Join(root, "configs"), 0o755); err != nil {
 		t.Fatalf("mkdir failed: %v", err)
 	}
@@ -396,9 +356,7 @@ func TestDiffCommandRejectsNonRegularInput(t *testing.T) {
 	}
 
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\n")
 
 	stdout, stderr, err := runDiffCommandWithStreams(t, root, ".env", "/dev/null")
 	if err == nil {
@@ -425,13 +383,9 @@ func TestDiffCommandReportsUnreadableFile(t *testing.T) {
 	}
 
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\n")
 	locked := filepath.Join(root, ".env.example")
-	if err := os.WriteFile(locked, []byte("FOO=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, locked, "FOO=example\n")
 	t.Cleanup(func() {
 		if err := os.Chmod(locked, 0o644); err != nil {
 			t.Errorf("restore permissions failed: %v", err)
@@ -465,12 +419,8 @@ func TestDiffCommandReportsUnreadableFile(t *testing.T) {
 
 func TestDiffCommandPropagatesStdoutWriteFailures(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\nCOMMON=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("BAR=example\nCOMMON=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\nCOMMON=local\n")
+	mustWriteFile(t, filepath.Join(root, ".env.example"), "BAR=example\nCOMMON=example\n")
 
 	withWorkingDir(t, root)
 
@@ -492,12 +442,8 @@ func TestDiffCommandPropagatesStdoutWriteFailures(t *testing.T) {
 
 func TestDiffCommandPropagatesSuccessStdoutWriteFailures(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("FOO=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\n")
+	mustWriteFile(t, filepath.Join(root, ".env.example"), "FOO=example\n")
 
 	withWorkingDir(t, root)
 
@@ -519,12 +465,8 @@ func TestDiffCommandPropagatesSuccessStdoutWriteFailures(t *testing.T) {
 
 func TestDiffCommandPropagatesJSONStdoutWriteFailures(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("FOO=local\n"), 0o644); err != nil {
-		t.Fatalf("write left failed: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(root, ".env.example"), []byte("FOO=example\n"), 0o644); err != nil {
-		t.Fatalf("write right failed: %v", err)
-	}
+	mustWriteFile(t, filepath.Join(root, ".env"), "FOO=local\n")
+	mustWriteFile(t, filepath.Join(root, ".env.example"), "FOO=example\n")
 
 	withWorkingDir(t, root)
 
@@ -570,6 +512,14 @@ func parseDiffJSON(t *testing.T, output string) diffJSON {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 	return payload
+}
+
+func mustWriteFile(t *testing.T, path, content string) {
+	t.Helper()
+
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s failed: %v", path, err)
+	}
 }
 
 func writeTestCLIError(w *bytes.Buffer, err error) {
