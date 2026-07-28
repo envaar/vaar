@@ -42,6 +42,11 @@ func ValidateRuleSelection(all []Rule, only, skip []string) error {
 // rules in declaration order. When fixes are requested, it reports the
 // original findings that disappeared as fixed and keeps the post-fix findings.
 func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
+	selected, err := selectRules(r.rules, opts.OnlyRules, opts.SkipRules)
+	if err != nil {
+		return Result{}, err
+	}
+
 	selection, err := scope.Resolve(scope.Options{
 		Root:      opts.Root,
 		Target:    opts.Target,
@@ -51,7 +56,7 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
-	return r.runWithSelection(ctx, opts, selection)
+	return r.runWithSelection(ctx, opts, selection, selected)
 }
 
 // RunWithSelection executes the configured rules against a pre-resolved scope
@@ -59,15 +64,15 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 // output-path validation, can reuse the same selection here to avoid walking the
 // tree twice.
 func (r *Runner) RunWithSelection(ctx context.Context, opts Options, selection scope.Selection) (Result, error) {
-	return r.runWithSelection(ctx, opts, selection)
-}
-
-func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection scope.Selection) (Result, error) {
 	selected, err := selectRules(r.rules, opts.OnlyRules, opts.SkipRules)
 	if err != nil {
 		return Result{}, err
 	}
 
+	return r.runWithSelection(ctx, opts, selection, selected)
+}
+
+func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection scope.Selection, selected []Rule) (Result, error) {
 	files, err := loadFiles(selection)
 	if err != nil {
 		return Result{}, err

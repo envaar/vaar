@@ -99,8 +99,9 @@ func discoverPaths(root, rootLabel, target, targetDir string) ([]string, error) 
 	return paths, nil
 }
 
-// resolvePath turns a user-supplied relative or absolute path into an
-// absolute path anchored to root.
+// resolvePath turns a user-supplied path into an absolute path. Relative
+// inputs are joined to root, while absolute inputs are cleaned and returned
+// unchanged.
 func resolvePath(root, path string) string {
 	if filepath.IsAbs(path) {
 		return filepath.Clean(path)

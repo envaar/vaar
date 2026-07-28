@@ -180,6 +180,27 @@ func TestRunnerRuleSelectionErrors(t *testing.T) {
 	}
 }
 
+func TestRunnerInvalidRuleSelectionBeatsScopeErrors(t *testing.T) {
+	root := t.TempDir()
+	ruleset, _ := testRules()
+	runner := lint.NewRunner(ruleset...)
+
+	_, err := runner.Run(context.Background(), lint.Options{
+		Root:      root,
+		Target:    "missing.env",
+		OnlyRules: []string{"unknown-rule"},
+	})
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if got := cli.ExitCode(err); got != cli.ExitInternal {
+		t.Fatalf("unexpected exit code: got %d want %d", got, cli.ExitInternal)
+	}
+	if !strings.Contains(err.Error(), "unknown lint rule \"unknown-rule\"") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunnerOnlySelectionStillUsesRealRules(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, ".env")
