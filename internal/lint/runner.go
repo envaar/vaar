@@ -35,16 +35,28 @@ func NewRunner(rules ...Rule) *Runner {
 // rules in declaration order. When fixes are requested, it reports the
 // original findings that disappeared as fixed and keeps the post-fix findings.
 func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
-	selected, err := selectRules(r.rules, opts.OnlyRules, opts.SkipRules)
-	if err != nil {
-		return Result{}, err
-	}
-
 	selection, err := scope.Resolve(scope.Options{
 		Root:      opts.Root,
 		Target:    opts.Target,
 		TargetDir: opts.TargetDir,
 	})
+	if err != nil {
+		return Result{}, err
+	}
+
+	return r.runWithSelection(ctx, opts, selection)
+}
+
+// RunWithSelection executes the configured rules against a pre-resolved scope
+// selection. Callers that already resolved scope, such as the CLI preflight for
+// output-path validation, can reuse the same selection here to avoid walking the
+// tree twice.
+func (r *Runner) RunWithSelection(ctx context.Context, opts Options, selection scope.Selection) (Result, error) {
+	return r.runWithSelection(ctx, opts, selection)
+}
+
+func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection scope.Selection) (Result, error) {
+	selected, err := selectRules(r.rules, opts.OnlyRules, opts.SkipRules)
 	if err != nil {
 		return Result{}, err
 	}
@@ -147,19 +159,10 @@ func markFixedFindings(original, remaining []Finding) []Finding {
 }
 
 // ValidateOutputPath reports an error if outputPath resolves to the same file
-// as any input path that would be linted with opts. The comparison uses
-// canonical absolute paths so relative, cleaned and symlink-equivalent forms
-// are detected.
-func ValidateOutputPath(opts Options, outputPath string) error {
-	selection, err := scope.Resolve(scope.Options{
-		Root:      opts.Root,
-		Target:    opts.Target,
-		TargetDir: opts.TargetDir,
-	})
-	if err != nil {
-		return err
-	}
-
+// as any input path in the resolved selection. The comparison uses canonical
+// absolute paths so relative, cleaned and symlink-equivalent forms are
+// detected.
+func ValidateOutputPath(selection scope.Selection, outputPath string) error {
 	out, err := canonicalPath(outputPath)
 	if err != nil {
 		return fmt.Errorf("resolve output path %q: %w", outputPath, err)

@@ -13,6 +13,7 @@ import (
 	"github.com/envaar/vaar/internal/lint"
 	"github.com/envaar/vaar/internal/lint/rules"
 	"github.com/envaar/vaar/internal/report"
+	"github.com/envaar/vaar/internal/scope"
 	"github.com/spf13/cobra"
 )
 
@@ -85,13 +86,28 @@ Use either --target or --target-dir, not both.`,
 				if err := validateOutputDestination(lintOutput); err != nil {
 					return err
 				}
-				if err := lint.ValidateOutputPath(opts, lintOutput); err != nil {
+			}
+
+			scopeSelection, err := scope.Resolve(scope.Options{
+				Root:      opts.Root,
+				Target:    opts.Target,
+				TargetDir: opts.TargetDir,
+			})
+			if err != nil {
+				if lintOutput != "" {
+					return NewToolError(err.Error(), nil)
+				}
+				return NewToolError("lint failed", err)
+			}
+
+			if lintOutput != "" {
+				if err := lint.ValidateOutputPath(scopeSelection, lintOutput); err != nil {
 					return NewToolError(err.Error(), nil)
 				}
 			}
 
 			runner := lint.NewRunner(rules.All()...)
-			result, err := runner.Run(cmd.Context(), opts)
+			result, err := runner.RunWithSelection(cmd.Context(), opts, scopeSelection)
 			if err != nil {
 				return NewToolError("lint failed", err)
 			}
