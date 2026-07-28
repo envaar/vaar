@@ -73,35 +73,18 @@ func discoverPaths(root, rootLabel, target, targetDir string) ([]string, error) 
 	}
 
 	if target != "" {
-		path := resolvePath(root, target)
-		info, err := os.Stat(path)
-		switch {
-		case err == nil:
-			if info.IsDir() {
-				return nil, fmt.Errorf("--target must point to a file: %s", target)
-			}
-			return []string{path}, nil
-		case os.IsNotExist(err):
-			return nil, fmt.Errorf("--target path does not exist: %s", target)
-		default:
-			return nil, fmt.Errorf("--target path cannot be read: %s: %w", target, err)
+		path, err := statScopeArg(root, target, "--target", false)
+		if err != nil {
+			return nil, err
 		}
+		return []string{path}, nil
 	}
 
 	if targetDir != "" {
-		path := resolvePath(root, targetDir)
-		info, err := os.Stat(path)
-		switch {
-		case err == nil:
-			if !info.IsDir() {
-				return nil, fmt.Errorf("--target-dir must point to a directory: %s", targetDir)
-			}
-		case os.IsNotExist(err):
-			return nil, fmt.Errorf("--target-dir path does not exist: %s", targetDir)
-		default:
-			return nil, fmt.Errorf("--target-dir path cannot be read: %s: %w", targetDir, err)
+		path, err := statScopeArg(root, targetDir, "--target-dir", true)
+		if err != nil {
+			return nil, err
 		}
-
 		paths, err := fs.Discover(path)
 		if err != nil {
 			return nil, fmt.Errorf("discovering files under %q: %w", targetDir, err)
@@ -123,4 +106,27 @@ func resolvePath(root, path string) string {
 		return filepath.Clean(path)
 	}
 	return filepath.Join(root, path)
+}
+
+// statScopeArg resolves a scope input relative to root, checks whether it
+// exists, verifies whether it is a file or directory, and returns the resolved
+// path when the input is usable.
+func statScopeArg(root, arg, flag string, wantDir bool) (string, error) {
+	path := resolvePath(root, arg)
+	info, err := os.Stat(path)
+	switch {
+	case err == nil:
+		if info.IsDir() != wantDir {
+			kind := "a file"
+			if wantDir {
+				kind = "a directory"
+			}
+			return "", fmt.Errorf("%s must point to %s: %s", flag, kind, arg)
+		}
+		return path, nil
+	case os.IsNotExist(err):
+		return "", fmt.Errorf("%s path does not exist: %s", flag, arg)
+	default:
+		return "", fmt.Errorf("%s path cannot be read: %s: %w", flag, arg, err)
+	}
 }
