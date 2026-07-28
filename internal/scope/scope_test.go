@@ -8,7 +8,7 @@ package scope
 import (
 	"os"
 	"path/filepath"
-	reflect "reflect"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"

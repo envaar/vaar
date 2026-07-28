@@ -685,6 +685,16 @@ func TestLintCommandTargetScopeErrors(t *testing.T) {
 			wantText: "--target path does not exist: missing.env",
 		},
 		{
+			name:     "invalid only beats missing target file",
+			args:     []string{"--only=json-output", "--target=missing.env"},
+			wantText: "unknown lint rule \"json-output\"",
+		},
+		{
+			name:     "invalid skip beats missing target file",
+			args:     []string{"--skip=json-output", "--target=missing.env"},
+			wantText: "unknown lint rule \"json-output\"",
+		},
+		{
 			name:     "target points to directory",
 			args:     []string{"--target=src"},
 			wantText: "--target must point to a file: src",

@@ -31,6 +31,13 @@ func NewRunner(rules ...Rule) *Runner {
 	return &Runner{rules: copied}
 }
 
+// ValidateRuleSelection checks the requested only/skip rule IDs against the
+// available rule set and returns the same validation errors that Run would.
+func ValidateRuleSelection(all []Rule, only, skip []string) error {
+	_, err := selectRules(all, only, skip)
+	return err
+}
+
 // Run resolves the root, discovers dotenv files and executes the selected
 // rules in declaration order. When fixes are requested, it reports the
 // original findings that disappeared as fixed and keeps the post-fix findings.

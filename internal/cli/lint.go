@@ -81,11 +81,16 @@ Use either --target or --target-dir, not both.`,
 				SkipRules: selection.SkipRules,
 				Fix:       lintFix,
 			}
+			allRules := rules.All()
 
 			if lintOutput != "" {
 				if err := validateOutputDestination(lintOutput); err != nil {
 					return err
 				}
+			}
+
+			if err := lint.ValidateRuleSelection(allRules, opts.OnlyRules, opts.SkipRules); err != nil {
+				return NewToolError("lint failed", err)
 			}
 
 			scopeSelection, err := scope.Resolve(scope.Options{
@@ -106,7 +111,7 @@ Use either --target or --target-dir, not both.`,
 				}
 			}
 
-			runner := lint.NewRunner(rules.All()...)
+			runner := lint.NewRunner(allRules...)
 			result, err := runner.RunWithSelection(cmd.Context(), opts, scopeSelection)
 			if err != nil {
 				return NewToolError("lint failed", err)
