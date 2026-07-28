@@ -42,6 +42,8 @@ func ValidateRuleSelection(all []Rule, only, skip []string) error {
 // rules in declaration order. When fixes are requested, it reports the
 // original findings that disappeared as fixed and keeps the post-fix findings.
 func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
+	opts = normalizeOptions(opts)
+
 	selected, err := selectRules(r.rules, opts.OnlyRules, opts.SkipRules)
 	if err != nil {
 		return Result{}, err
@@ -64,6 +66,8 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 // output-path validation, can reuse the same selection here to avoid walking the
 // tree twice.
 func (r *Runner) RunWithSelection(ctx context.Context, opts Options, selection scope.Selection) (Result, error) {
+	opts = normalizeOptions(opts)
+
 	selected, err := selectRules(r.rules, opts.OnlyRules, opts.SkipRules)
 	if err != nil {
 		return Result{}, err
@@ -113,6 +117,13 @@ func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection s
 		Files:    files,
 		Changed:  changed,
 	}, nil
+}
+
+func normalizeOptions(opts Options) Options {
+	if opts.Root == "" {
+		opts.Root = "."
+	}
+	return opts
 }
 
 func (r *Runner) runRules(ctx context.Context, root string, selected []Rule, files []envfile.File, opts Options) ([]Finding, error) {
