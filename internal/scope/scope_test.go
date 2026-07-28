@@ -17,21 +17,21 @@ import (
 func TestResolveDefaultDiscovery(t *testing.T) {
 	root := t.TempDir()
 	withWorkingDir(t, root)
-	wantRoot := canonicalizeExisting(root)
+	resolvedRoot := mustAbs(t, ".")
 
-	mustWrite(t, filepath.Join(root, ".env"), "ROOT=value\n")
-	mustWrite(t, filepath.Join(root, ".env.preview-local"), "PREVIEW=value\n")
-	mustWrite(t, filepath.Join(root, "src", "app", ".env.example"), "APP=value\n")
-	mustWrite(t, filepath.Join(root, "src", "examples", "broken", ".env.example"), "BROKEN=value\n")
-	mustWrite(t, filepath.Join(root, "src", "dist", ".env.local"), "IGNORED=value\n")
-	mustWrite(t, filepath.Join(root, "vendor", ".env"), "IGNORED=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, ".env"), "ROOT=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, ".env.preview-local"), "PREVIEW=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, "src", "app", ".env.example"), "APP=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, "src", "examples", "broken", ".env.example"), "BROKEN=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, "src", "dist", ".env.local"), "IGNORED=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, "vendor", ".env"), "IGNORED=value\n")
 
 	selection, err := Resolve(Options{Root: "."})
 	if err != nil {
 		t.Fatalf("resolve failed: %v", err)
 	}
 
-	if got, want := selection.Root, wantRoot; got != want {
+	if got, want := selection.Root, resolvedRoot; got != want {
 		t.Fatalf("unexpected root: got %q want %q", got, want)
 	}
 	if got, want := selection.RootLabel, "."; got != want {
@@ -39,10 +39,10 @@ func TestResolveDefaultDiscovery(t *testing.T) {
 	}
 
 	wantPaths := []string{
-		canonicalizeExisting(filepath.Join(root, ".env")),
-		canonicalizeExisting(filepath.Join(root, ".env.preview-local")),
-		canonicalizeExisting(filepath.Join(root, "src", "app", ".env.example")),
-		canonicalizeExisting(filepath.Join(root, "src", "examples", "broken", ".env.example")),
+		filepath.Join(resolvedRoot, ".env"),
+		filepath.Join(resolvedRoot, ".env.preview-local"),
+		filepath.Join(resolvedRoot, "src", "app", ".env.example"),
+		filepath.Join(resolvedRoot, "src", "examples", "broken", ".env.example"),
 	}
 	if !reflect.DeepEqual(selection.Paths, wantPaths) {
 		t.Fatalf("unexpected paths: got %#v want %#v", selection.Paths, wantPaths)
@@ -66,11 +66,11 @@ func TestResolveDefaultDiscovery(t *testing.T) {
 func TestResolveTargetFileSelection(t *testing.T) {
 	root := t.TempDir()
 	withWorkingDir(t, root)
+	resolvedRoot := mustAbs(t, ".")
 
-	mustWrite(t, filepath.Join(root, ".env"), "ROOT=value\n")
-	customPath := filepath.Join(root, "config", "custom.envfile")
+	mustWrite(t, filepath.Join(resolvedRoot, ".env"), "ROOT=value\n")
+	customPath := filepath.Join(resolvedRoot, "config", "custom.envfile")
 	mustWrite(t, customPath, "CUSTOM=value\n")
-	wantPath := canonicalizeExisting(customPath)
 
 	cases := []struct {
 		name        string
@@ -81,13 +81,13 @@ func TestResolveTargetFileSelection(t *testing.T) {
 		{
 			name:        "relative target path",
 			target:      filepath.Join("config", "custom.envfile"),
-			wantPath:    wantPath,
+			wantPath:    customPath,
 			wantDisplay: filepath.Join("config", "custom.envfile"),
 		},
 		{
 			name:        "absolute target path",
 			target:      customPath,
-			wantPath:    wantPath,
+			wantPath:    customPath,
 			wantDisplay: filepath.Join("config", "custom.envfile"),
 		},
 	}
@@ -115,15 +115,16 @@ func TestResolveTargetFileSelection(t *testing.T) {
 func TestResolveTargetDirSelection(t *testing.T) {
 	root := t.TempDir()
 	withWorkingDir(t, root)
+	resolvedRoot := mustAbs(t, ".")
 
-	mustWrite(t, filepath.Join(root, ".env"), "ROOT=value\n")
-	mustWrite(t, filepath.Join(root, "src", "app", ".env.example"), "APP=value\n")
-	mustWrite(t, filepath.Join(root, "src", "examples", "broken", ".env.example"), "BROKEN=value\n")
-	mustWrite(t, filepath.Join(root, "src", "dist", ".env.local"), "IGNORED=value\n")
-	mustWrite(t, filepath.Join(root, "src", "README.md"), "ignored\n")
+	mustWrite(t, filepath.Join(resolvedRoot, ".env"), "ROOT=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, "src", "app", ".env.example"), "APP=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, "src", "examples", "broken", ".env.example"), "BROKEN=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, "src", "dist", ".env.local"), "IGNORED=value\n")
+	mustWrite(t, filepath.Join(resolvedRoot, "src", "README.md"), "ignored\n")
 	wantPaths := []string{
-		canonicalizeExisting(filepath.Join(root, "src", "app", ".env.example")),
-		canonicalizeExisting(filepath.Join(root, "src", "examples", "broken", ".env.example")),
+		filepath.Join(resolvedRoot, "src", "app", ".env.example"),
+		filepath.Join(resolvedRoot, "src", "examples", "broken", ".env.example"),
 	}
 
 	cases := []struct {
@@ -141,7 +142,7 @@ func TestResolveTargetDirSelection(t *testing.T) {
 		},
 		{
 			name:      "absolute target dir",
-			targetDir: filepath.Join(root, "src"),
+			targetDir: filepath.Join(resolvedRoot, "src"),
 			wantDisplay: []string{
 				filepath.Join("src", "app", ".env.example"),
 				filepath.Join("src", "examples", "broken", ".env.example"),
@@ -229,6 +230,9 @@ func TestResolveUnreadableTargetPath(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("permission-denied fixtures are not portable on windows")
 	}
+	if isPrivilegedUser() {
+		t.Skip("permission-denied fixtures require a non-root POSIX user")
+	}
 
 	root := t.TempDir()
 	withWorkingDir(t, root)
@@ -282,4 +286,14 @@ func mustWrite(t *testing.T, path, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("write failed: %v", err)
 	}
+}
+
+func mustAbs(t *testing.T, path string) string {
+	t.Helper()
+
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		t.Fatalf("abs failed: %v", err)
+	}
+	return abs
 }

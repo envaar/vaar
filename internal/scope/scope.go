@@ -45,7 +45,6 @@ func Resolve(opts Options) (Selection, error) {
 	if err != nil {
 		return Selection{}, fmt.Errorf("resolve root %q: %w", rootLabel, err)
 	}
-	absRoot = canonicalizeExisting(absRoot)
 
 	paths, err := discoverPaths(absRoot, rootLabel, opts.Target, opts.TargetDir)
 	if err != nil {
@@ -81,7 +80,7 @@ func discoverPaths(root, rootLabel, target, targetDir string) ([]string, error) 
 			if info.IsDir() {
 				return nil, fmt.Errorf("--target must point to a file: %s", target)
 			}
-			return []string{canonicalizeExisting(path)}, nil
+			return []string{path}, nil
 		case os.IsNotExist(err):
 			return nil, fmt.Errorf("--target path does not exist: %s", target)
 		default:
@@ -97,7 +96,6 @@ func discoverPaths(root, rootLabel, target, targetDir string) ([]string, error) 
 			if !info.IsDir() {
 				return nil, fmt.Errorf("--target-dir must point to a directory: %s", targetDir)
 			}
-			path = canonicalizeExisting(path)
 		case os.IsNotExist(err):
 			return nil, fmt.Errorf("--target-dir path does not exist: %s", targetDir)
 		default:
@@ -125,14 +123,4 @@ func resolvePath(root, path string) string {
 		return filepath.Clean(path)
 	}
 	return filepath.Join(root, path)
-}
-
-// canonicalizeExisting resolves symlinks for a path when possible. If the
-// path cannot be resolved, the original path is preserved.
-func canonicalizeExisting(path string) string {
-	resolved, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		return path
-	}
-	return resolved
 }
