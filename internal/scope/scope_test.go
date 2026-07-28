@@ -17,6 +17,7 @@ import (
 func TestResolveDefaultDiscovery(t *testing.T) {
 	root := t.TempDir()
 	withWorkingDir(t, root)
+	wantRoot := canonicalizeExisting(root)
 
 	mustWrite(t, filepath.Join(root, ".env"), "ROOT=value\n")
 	mustWrite(t, filepath.Join(root, ".env.preview-local"), "PREVIEW=value\n")
@@ -30,7 +31,7 @@ func TestResolveDefaultDiscovery(t *testing.T) {
 		t.Fatalf("resolve failed: %v", err)
 	}
 
-	if got, want := selection.Root, root; got != want {
+	if got, want := selection.Root, wantRoot; got != want {
 		t.Fatalf("unexpected root: got %q want %q", got, want)
 	}
 	if got, want := selection.RootLabel, "."; got != want {
@@ -38,10 +39,10 @@ func TestResolveDefaultDiscovery(t *testing.T) {
 	}
 
 	wantPaths := []string{
-		filepath.Join(root, ".env"),
-		filepath.Join(root, ".env.preview-local"),
-		filepath.Join(root, "src", "app", ".env.example"),
-		filepath.Join(root, "src", "examples", "broken", ".env.example"),
+		canonicalizeExisting(filepath.Join(root, ".env")),
+		canonicalizeExisting(filepath.Join(root, ".env.preview-local")),
+		canonicalizeExisting(filepath.Join(root, "src", "app", ".env.example")),
+		canonicalizeExisting(filepath.Join(root, "src", "examples", "broken", ".env.example")),
 	}
 	if !reflect.DeepEqual(selection.Paths, wantPaths) {
 		t.Fatalf("unexpected paths: got %#v want %#v", selection.Paths, wantPaths)
@@ -69,6 +70,7 @@ func TestResolveTargetFileSelection(t *testing.T) {
 	mustWrite(t, filepath.Join(root, ".env"), "ROOT=value\n")
 	customPath := filepath.Join(root, "config", "custom.envfile")
 	mustWrite(t, customPath, "CUSTOM=value\n")
+	wantPath := canonicalizeExisting(customPath)
 
 	cases := []struct {
 		name        string
@@ -79,13 +81,13 @@ func TestResolveTargetFileSelection(t *testing.T) {
 		{
 			name:        "relative target path",
 			target:      filepath.Join("config", "custom.envfile"),
-			wantPath:    customPath,
+			wantPath:    wantPath,
 			wantDisplay: filepath.Join("config", "custom.envfile"),
 		},
 		{
 			name:        "absolute target path",
 			target:      customPath,
-			wantPath:    customPath,
+			wantPath:    wantPath,
 			wantDisplay: filepath.Join("config", "custom.envfile"),
 		},
 	}
@@ -119,20 +121,19 @@ func TestResolveTargetDirSelection(t *testing.T) {
 	mustWrite(t, filepath.Join(root, "src", "examples", "broken", ".env.example"), "BROKEN=value\n")
 	mustWrite(t, filepath.Join(root, "src", "dist", ".env.local"), "IGNORED=value\n")
 	mustWrite(t, filepath.Join(root, "src", "README.md"), "ignored\n")
+	wantPaths := []string{
+		canonicalizeExisting(filepath.Join(root, "src", "app", ".env.example")),
+		canonicalizeExisting(filepath.Join(root, "src", "examples", "broken", ".env.example")),
+	}
 
 	cases := []struct {
 		name        string
 		targetDir   string
-		wantPaths   []string
 		wantDisplay []string
 	}{
 		{
 			name:      "relative target dir",
 			targetDir: "src",
-			wantPaths: []string{
-				filepath.Join(root, "src", "app", ".env.example"),
-				filepath.Join(root, "src", "examples", "broken", ".env.example"),
-			},
 			wantDisplay: []string{
 				filepath.Join("src", "app", ".env.example"),
 				filepath.Join("src", "examples", "broken", ".env.example"),
@@ -141,10 +142,6 @@ func TestResolveTargetDirSelection(t *testing.T) {
 		{
 			name:      "absolute target dir",
 			targetDir: filepath.Join(root, "src"),
-			wantPaths: []string{
-				filepath.Join(root, "src", "app", ".env.example"),
-				filepath.Join(root, "src", "examples", "broken", ".env.example"),
-			},
 			wantDisplay: []string{
 				filepath.Join("src", "app", ".env.example"),
 				filepath.Join("src", "examples", "broken", ".env.example"),
@@ -159,8 +156,8 @@ func TestResolveTargetDirSelection(t *testing.T) {
 				t.Fatalf("resolve failed: %v", err)
 			}
 
-			if !reflect.DeepEqual(selection.Paths, tc.wantPaths) {
-				t.Fatalf("unexpected paths: got %#v want %#v", selection.Paths, tc.wantPaths)
+			if !reflect.DeepEqual(selection.Paths, wantPaths) {
+				t.Fatalf("unexpected paths: got %#v want %#v", selection.Paths, wantPaths)
 			}
 
 			gotDisplay := make([]string, len(selection.Paths))
