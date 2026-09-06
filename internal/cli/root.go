@@ -37,6 +37,7 @@ and automation-friendly output.`,
 	cmd.AddCommand(
 		newLintCmd(),
 		newDiffCmd(),
+		newNormalizeCmd(),
 	)
 	return cmd
 }
