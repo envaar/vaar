@@ -28,3 +28,6 @@ Thumbs.db
 
 # Local maintainer planning notes
 temp_docs/
+
+# Agent workflow artifacts
+docs/superpowers/
