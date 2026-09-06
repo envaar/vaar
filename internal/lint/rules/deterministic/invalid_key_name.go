@@ -24,15 +24,15 @@ func (invalidKeyNameRule) Description() string {
 
 func (invalidKeyNameRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		for _, line := range file.Lines {
+	for _, document := range ctx.Snapshot.Documents() {
+		for _, line := range document.Lines {
 			if !line.HasKey || validKeyName(line.Key) {
 				continue
 			}
 			findings = append(findings, finding(
 				invalidKeyNameRule{}.ID(),
 				lint.SeverityError,
-				file.Path,
+				document.DisplayPath,
 				line.Number,
 				fmt.Sprintf("%s is not a portable env key name", line.Key),
 			))

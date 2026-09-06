@@ -24,16 +24,16 @@ func (extraBlankLineRule) Fix(data []byte) []byte { return envfile.CollapseBlank
 
 func (extraBlankLineRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
+	for _, document := range ctx.Snapshot.Documents() {
 		run := 0
-		for _, line := range file.Lines {
+		for _, line := range document.Lines {
 			if line.IsBlank {
 				run++
 				if run > 1 {
 					findings = append(findings, finding(
 						extraBlankLineRule{}.ID(),
 						lint.SeverityWarn,
-						file.Path,
+						document.DisplayPath,
 						line.Number,
 						"repeated blank line",
 					))

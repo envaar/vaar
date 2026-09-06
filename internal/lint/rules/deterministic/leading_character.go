@@ -18,15 +18,15 @@ func (leadingCharacterRule) Description() string { return "warns when a line sta
 
 func (leadingCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		for _, line := range file.Lines {
-			if line.IsBlank || line.IsComment || line.LeadingWhitespace == "" {
+	for _, document := range ctx.Snapshot.Documents() {
+		for _, line := range document.Lines {
+			if line.IsBlank || line.IsComment || !line.HasLeadingWhitespace {
 				continue
 			}
 			findings = append(findings, finding(
 				leadingCharacterRule{}.ID(),
 				lint.SeverityWarn,
-				file.Path,
+				document.DisplayPath,
 				line.Number,
 				"line starts with leading whitespace",
 			))

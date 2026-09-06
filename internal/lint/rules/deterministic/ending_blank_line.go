@@ -26,17 +26,17 @@ func (endingBlankLineRule) Fix(data []byte) []byte { return envfile.TrimFinalBla
 
 func (endingBlankLineRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		if len(file.Lines) == 0 {
+	for _, document := range ctx.Snapshot.Documents() {
+		if len(document.Lines) == 0 {
 			continue
 		}
 
-		last := file.Lines[len(file.Lines)-1]
-		if !file.EndsWithNewline || last.IsBlank {
+		last := document.Lines[len(document.Lines)-1]
+		if !document.EndsWithNewline || last.IsBlank {
 			findings = append(findings, finding(
 				endingBlankLineRule{}.ID(),
 				lint.SeverityWarn,
-				file.Path,
+				document.DisplayPath,
 				last.Number,
 				"file must end with exactly one final newline",
 			))

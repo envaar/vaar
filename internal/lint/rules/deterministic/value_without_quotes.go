@@ -6,9 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 package deterministic
 
 import (
-	"strings"
-
-	"github.com/envaar/vaar/internal/envfile"
+	"github.com/envaar/vaar/internal/analysis"
 	"github.com/envaar/vaar/internal/lint"
 )
 
@@ -27,26 +25,21 @@ func (valueWithoutQuotesRule) Description() string {
 func (valueWithoutQuotesRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
 
-	for _, file := range ctx.Files {
-		for _, line := range file.Lines {
+	for _, document := range ctx.Snapshot.Documents() {
+		for _, line := range document.Lines {
 			if !line.HasAssignment || !line.HasValue {
 				continue
 			}
 
-			if line.Value == "" {
+			if line.QuoteState != analysis.QuoteNone {
 				continue
 			}
 
-			if line.QuoteState != envfile.QuoteNone {
-				continue
-			}
-
-			if strings.ContainsRune(line.Value, ' ') ||
-				strings.ContainsRune(line.Value, '\t') {
+			if line.ValueContainsWhitespace {
 				findings = append(findings, finding(
 					valueWithoutQuotesRule{}.ID(),
 					lint.SeverityError,
-					file.Path,
+					document.DisplayPath,
 					line.Number,
 					"value containing whitespace should be enclosed in quotes",
 				))

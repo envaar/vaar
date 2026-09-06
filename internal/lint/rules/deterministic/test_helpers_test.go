@@ -9,8 +9,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/envaar/vaar/internal/analysis"
+	analysisdotenv "github.com/envaar/vaar/internal/analysis/dotenv"
 	"github.com/envaar/vaar/internal/envfile"
 	"github.com/envaar/vaar/internal/lint"
+	sourcedotenv "github.com/envaar/vaar/internal/source/dotenv"
 )
 
 type ruleTestCase struct {
@@ -32,7 +35,16 @@ func runRuleTest(t *testing.T, tc ruleTestCase) {
 		t.Fatalf("parse failed: %v", err)
 	}
 
-	findings, err := tc.rule.Run(lint.Context{Files: []envfile.File{file}})
+	snapshotDocument := analysisdotenv.FromDocument(analysisdotenv.DocumentInput{
+		ID: analysis.DocumentID("test.env"),
+		Source: sourcedotenv.Document{
+			File:       file,
+			SourcePath: "test.env",
+		},
+	})
+	findings, err := tc.rule.Run(lint.Context{
+		Snapshot: analysis.NewSnapshot([]analysis.Document{snapshotDocument}),
+	})
 	if err != nil {
 		t.Fatalf("rule run failed: %v", err)
 	}

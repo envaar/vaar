@@ -8,7 +8,7 @@ package deterministic
 import (
 	"fmt"
 
-	"github.com/envaar/vaar/internal/envfile"
+	"github.com/envaar/vaar/internal/analysis"
 	"github.com/envaar/vaar/internal/lint"
 )
 
@@ -25,15 +25,15 @@ func (incorrectDelimiterRule) Description() string {
 
 func (incorrectDelimiterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		for _, line := range file.Lines {
-			if !line.HasKey || line.DelimiterState != envfile.DelimiterColon {
+	for _, document := range ctx.Snapshot.Documents() {
+		for _, line := range document.Lines {
+			if !line.HasKey || line.DelimiterState != analysis.DelimiterColon {
 				continue
 			}
 			findings = append(findings, finding(
 				incorrectDelimiterRule{}.ID(),
 				lint.SeverityError,
-				file.Path,
+				document.DisplayPath,
 				line.Number,
 				fmt.Sprintf("%s uses ':' instead of '='", line.Key),
 			))

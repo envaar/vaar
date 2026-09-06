@@ -24,15 +24,15 @@ func (trailingWhitespaceRule) Fix(data []byte) []byte { return envfile.TrimTrail
 
 func (trailingWhitespaceRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		for _, line := range file.Lines {
-			if line.TrailingWhitespace == "" {
+	for _, document := range ctx.Snapshot.Documents() {
+		for _, line := range document.Lines {
+			if !line.HasTrailingWhitespace {
 				continue
 			}
 			findings = append(findings, finding(
 				trailingWhitespaceRule{}.ID(),
 				lint.SeverityWarn,
-				file.Path,
+				document.DisplayPath,
 				line.Number,
 				"line has trailing whitespace",
 			))

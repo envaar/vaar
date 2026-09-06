@@ -33,18 +33,6 @@ func (r countingRule) Run(lint.Context) ([]lint.Finding, error) {
 	return nil, nil
 }
 
-type rootRecordingRule struct {
-	root *string
-}
-
-func (r rootRecordingRule) ID() string          { return "root-recording" }
-func (r rootRecordingRule) Description() string { return "records the root option" }
-
-func (r rootRecordingRule) Run(ctx lint.Context) ([]lint.Finding, error) {
-	*r.root = ctx.Options.Root
-	return nil, nil
-}
-
 func TestRunnerRuleSelection(t *testing.T) {
 	root := t.TempDir()
 
@@ -210,20 +198,6 @@ func TestRunnerInvalidRuleSelectionBeatsScopeErrors(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unknown lint rule \"unknown-rule\"") {
 		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestRunnerDefaultsEmptyRootForRuleContext(t *testing.T) {
-	var gotRoot string
-	runner := lint.NewRunner(rootRecordingRule{root: &gotRoot})
-
-	_, err := runner.Run(context.Background(), lint.Options{})
-	if err != nil {
-		t.Fatalf("run failed: %v", err)
-	}
-
-	if got, want := gotRoot, "."; got != want {
-		t.Fatalf("unexpected ctx.Options.Root: got %q want %q", got, want)
 	}
 }
 

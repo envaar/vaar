@@ -25,8 +25,8 @@ func (constantCaseRule) Description() string {
 
 func (constantCaseRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		for _, line := range file.Lines {
+	for _, document := range ctx.Snapshot.Documents() {
+		for _, line := range document.Lines {
 			// Structurally invalid keys belong to invalid-key-name; this
 			// rule only reports otherwise-valid keys whose sole deviation
 			// is lowercase letters.
@@ -40,7 +40,7 @@ func (constantCaseRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 			findings = append(findings, finding(
 				constantCaseRule{}.ID(),
 				lint.SeverityWarn,
-				file.Path,
+				document.DisplayPath,
 				line.Number,
 				fmt.Sprintf("%s should use CONSTANT_CASE: %s", line.Key, upper),
 			))

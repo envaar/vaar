@@ -23,9 +23,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/envaar/vaar/internal/analysis"
+	analysisdotenv "github.com/envaar/vaar/internal/analysis/dotenv"
 	"github.com/envaar/vaar/internal/envfile"
 	"github.com/envaar/vaar/internal/lint"
 	"github.com/envaar/vaar/internal/lint/rules"
+	sourcedotenv "github.com/envaar/vaar/internal/source/dotenv"
 )
 
 // expectedFixable is the empirical set of rules the --fix pass repairs. The
@@ -78,7 +81,16 @@ func hasFinding(t *testing.T, rule lint.Rule, data []byte) bool {
 	if err != nil {
 		t.Fatalf("parse failed: %v", err)
 	}
-	findings, err := rule.Run(lint.Context{Files: []envfile.File{file}})
+	snapshotDocument := analysisdotenv.FromDocument(analysisdotenv.DocumentInput{
+		ID: analysis.DocumentID("drift.env"),
+		Source: sourcedotenv.Document{
+			File:       file,
+			SourcePath: "drift.env",
+		},
+	})
+	findings, err := rule.Run(lint.Context{
+		Snapshot: analysis.NewSnapshot([]analysis.Document{snapshotDocument}),
+	})
 	if err != nil {
 		t.Fatalf("rule run failed: %v", err)
 	}

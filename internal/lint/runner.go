@@ -8,12 +8,13 @@ package lint
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
 
+	"github.com/envaar/vaar/internal/analysis"
+	analysisdotenv "github.com/envaar/vaar/internal/analysis/dotenv"
 	"github.com/envaar/vaar/internal/envfile"
 	"github.com/envaar/vaar/internal/fs"
 	"github.com/envaar/vaar/internal/scope"
+	sourcedotenv "github.com/envaar/vaar/internal/source/dotenv"
 )
 
 // Runner executes a rule set over discovered dotenv files and keeps the
@@ -76,12 +77,12 @@ func (r *Runner) RunWithSelection(ctx context.Context, opts Options, selection s
 }
 
 func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection scope.Selection, selected []Rule) (Result, error) {
-	files, err := loadFiles(selection)
+	loaded, err := loadFiles(selection)
 	if err != nil {
 		return Result{}, err
 	}
 
-	findings, err := r.runRules(ctx, selection.Root, selected, files, opts)
+	findings, err := runRules(ctx, selected, loaded.snapshot)
 	if err != nil {
 		return Result{}, err
 	}
@@ -94,18 +95,18 @@ func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection s
 		}
 
 		if changed {
-			fixedFiles, err := loadFiles(selection)
+			fixed, err := loadFiles(selection)
 			if err != nil {
 				return Result{}, err
 			}
 
-			remaining, err := r.runRules(ctx, selection.Root, selected, fixedFiles, opts)
+			remaining, err := runRules(ctx, selected, fixed.snapshot)
 			if err != nil {
 				return Result{}, err
 			}
 
 			findings = markFixedFindings(findings, remaining)
-			files = fixedFiles
+			loaded = fixed
 		}
 	}
 
@@ -113,7 +114,7 @@ func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection s
 
 	return Result{
 		Findings: findings,
-		Files:    files,
+		Files:    loaded.files,
 		Changed:  changed,
 	}, nil
 }
@@ -125,22 +126,8 @@ func normalizeOptions(opts Options) Options {
 	return opts
 }
 
-func (r *Runner) runRules(ctx context.Context, root string, selected []Rule, files []envfile.File, opts Options) ([]Finding, error) {
-	runCtx := Context{Root: root, Files: files, Options: opts}
-	findings := make([]Finding, 0, 16)
-	for _, rule := range selected {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-
-		ruleFindings, err := rule.Run(runCtx)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", rule.ID(), err)
-		}
-		findings = append(findings, ruleFindings...)
-	}
-
-	return findings, nil
+func runRules(ctx context.Context, selected []Rule, snapshot analysis.Snapshot) ([]Finding, error) {
+	return NewEngine(selected...).Run(ctx, snapshot, EngineOptions{})
 }
 
 type findingKey struct {
@@ -180,104 +167,40 @@ func markFixedFindings(original, remaining []Finding) []Finding {
 	return append(findings, remaining...)
 }
 
+type loadedFiles struct {
+	files    []envfile.File
+	snapshot analysis.Snapshot
+}
+
 // loadFiles reads each selected path and parses it relative to the configured
-// repository root.
-func loadFiles(selection scope.Selection) ([]envfile.File, error) {
+// repository root. The parsed files remain available only for the temporary
+// runner result and fix adapter; rules receive the derived analysis snapshot.
+func loadFiles(selection scope.Selection) (loadedFiles, error) {
 	files := make([]envfile.File, 0, len(selection.Paths))
+	inputs := make([]analysisdotenv.DocumentInput, 0, len(selection.Paths))
 	for _, path := range selection.Paths {
 		display := selection.DisplayPath(path)
 		data, err := fs.ReadFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("read %q: %w", display, err)
+			return loadedFiles{}, fmt.Errorf("read %q: %w", display, err)
 		}
 
 		parsed, err := envfile.Parse(display, data)
 		if err != nil {
-			return nil, fmt.Errorf("parse %q: %w", display, err)
+			return loadedFiles{}, fmt.Errorf("parse %q: %w", display, err)
 		}
 		files = append(files, parsed)
-	}
-	return files, nil
-}
-
-// selectRules applies --only and --skip in declaration order so the selected
-// set stays predictable for completions, tests and report output.
-func selectRules(all []Rule, only, skip []string) ([]Rule, error) {
-	if len(all) == 0 {
-		return nil, nil
+		inputs = append(inputs, analysisdotenv.DocumentInput{
+			ID: analysis.DocumentID(path),
+			Source: sourcedotenv.Document{
+				File:       parsed,
+				SourcePath: path,
+			},
+		})
 	}
 
-	allowed := make(map[string]Rule, len(all))
-	ordered := make([]Rule, 0, len(all))
-	for _, rule := range all {
-		allowed[rule.ID()] = rule
-		ordered = append(ordered, rule)
-	}
-
-	selectedIDs := make(map[string]struct{}, len(all))
-
-	if len(only) > 0 {
-		for _, id := range only {
-			id = strings.TrimSpace(id)
-			if id == "" {
-				return nil, fmt.Errorf("invalid empty rule ID in --only")
-			}
-			if _, ok := allowed[id]; !ok {
-				return nil, fmt.Errorf("unknown lint rule %q", id)
-			}
-			selectedIDs[id] = struct{}{}
-		}
-	} else {
-		for _, rule := range ordered {
-			selectedIDs[rule.ID()] = struct{}{}
-		}
-	}
-
-	if len(skip) > 0 {
-		for _, id := range skip {
-			id = strings.TrimSpace(id)
-			if id == "" {
-				return nil, fmt.Errorf("invalid empty rule ID in --skip")
-			}
-			if _, ok := allowed[id]; !ok {
-				return nil, fmt.Errorf("unknown lint rule %q", id)
-			}
-			delete(selectedIDs, id)
-		}
-	}
-
-	selected := make([]Rule, 0, len(selectedIDs))
-	for _, rule := range ordered {
-		if _, ok := selectedIDs[rule.ID()]; ok {
-			selected = append(selected, rule)
-		}
-	}
-
-	if len(selected) == 0 {
-		return nil, fmt.Errorf("no lint rules selected after applying --only and --skip")
-	}
-
-	return selected, nil
-}
-
-// sortFindings orders output by file, line, severity, rule and message so
-// repeated runs produce the same report.
-func sortFindings(findings []Finding) {
-	sort.SliceStable(findings, func(i, j int) bool {
-		left := findings[i]
-		right := findings[j]
-		if left.File != right.File {
-			return left.File < right.File
-		}
-		if left.Line != right.Line {
-			return left.Line < right.Line
-		}
-		if left.Severity.Rank() != right.Severity.Rank() {
-			return left.Severity.Rank() < right.Severity.Rank()
-		}
-		if left.Rule != right.Rule {
-			return left.Rule < right.Rule
-		}
-		return left.Message < right.Message
-	})
+	return loadedFiles{
+		files:    files,
+		snapshot: analysis.NewSnapshot(analysisdotenv.FromDocuments(inputs)),
+	}, nil
 }

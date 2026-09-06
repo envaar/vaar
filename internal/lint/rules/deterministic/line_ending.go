@@ -33,18 +33,18 @@ func (lineEndingRule) Fix(data []byte) []byte {
 
 func (lineEndingRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		if !file.MixedLineEndings {
+	for _, document := range ctx.Snapshot.Documents() {
+		if !document.MixedLineEndings {
 			continue
 		}
 		lineNumber := 1
-		if len(file.Lines) > 0 {
-			lineNumber = file.Lines[0].Number
+		if len(document.Lines) > 0 {
+			lineNumber = document.Lines[0].Number
 		}
 		findings = append(findings, finding(
 			lineEndingRule{}.ID(),
 			lint.SeverityWarn,
-			file.Path,
+			document.DisplayPath,
 			lineNumber,
 			"file uses mixed CRLF and LF line endings",
 		))

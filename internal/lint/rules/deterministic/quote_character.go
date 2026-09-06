@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 package deterministic
 
 import (
-	"github.com/envaar/vaar/internal/envfile"
+	"github.com/envaar/vaar/internal/analysis"
 	"github.com/envaar/vaar/internal/lint"
 )
 
@@ -23,15 +23,15 @@ func (quoteCharacterRule) Description() string {
 
 func (quoteCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		for _, line := range file.Lines {
-			if line.QuoteState != envfile.QuoteUnbalanced {
+	for _, document := range ctx.Snapshot.Documents() {
+		for _, line := range document.Lines {
+			if line.QuoteState != analysis.QuoteUnbalanced {
 				continue
 			}
 			findings = append(findings, finding(
 				quoteCharacterRule{}.ID(),
 				lint.SeverityError,
-				file.Path,
+				document.DisplayPath,
 				line.Number,
 				"value has unbalanced quotes",
 			))

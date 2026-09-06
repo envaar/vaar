@@ -8,7 +8,7 @@ package deterministic
 import (
 	"fmt"
 
-	"github.com/envaar/vaar/internal/envfile"
+	"github.com/envaar/vaar/internal/analysis"
 	"github.com/envaar/vaar/internal/lint"
 )
 
@@ -25,17 +25,17 @@ func (duplicateKeyRule) Description() string {
 
 func (duplicateKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		seen := make(map[string]int, len(file.Lines))
-		for _, line := range file.Lines {
-			if !line.HasKey || line.DelimiterState == envfile.DelimiterMissing {
+	for _, document := range ctx.Snapshot.Documents() {
+		seen := make(map[string]int, len(document.Lines))
+		for _, line := range document.Lines {
+			if !line.HasKey || line.DelimiterState == analysis.DelimiterMissing {
 				continue
 			}
 			if _, ok := seen[line.Key]; ok {
 				findings = append(findings, finding(
 					duplicateKeyRule{}.ID(),
 					lint.SeverityError,
-					file.Path,
+					document.DisplayPath,
 					line.Number,
 					fmt.Sprintf("%s is defined more than once", line.Key),
 				))

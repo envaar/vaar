@@ -20,8 +20,8 @@ func (spaceCharacterRule) Description() string {
 
 func (spaceCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		for _, line := range file.Lines {
+	for _, document := range ctx.Snapshot.Documents() {
+		for _, line := range document.Lines {
 			if line.IsBlank || line.IsComment {
 				continue
 			}
@@ -31,7 +31,7 @@ func (spaceCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 			findings = append(findings, finding(
 				spaceCharacterRule{}.ID(),
 				lint.SeverityWarn,
-				file.Path,
+				document.DisplayPath,
 				line.Number,
 				"line has spaces around the key, delimiter or value",
 			))

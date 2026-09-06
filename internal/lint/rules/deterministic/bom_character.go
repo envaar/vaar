@@ -26,18 +26,18 @@ func (bomCharacterRule) Fix(data []byte) []byte { return envfile.StripBOM(data) 
 
 func (bomCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, file := range ctx.Files {
-		if !file.BOM {
+	for _, document := range ctx.Snapshot.Documents() {
+		if !document.BOM {
 			continue
 		}
 		lineNumber := 1
-		if len(file.Lines) > 0 {
-			lineNumber = file.Lines[0].Number
+		if len(document.Lines) > 0 {
+			lineNumber = document.Lines[0].Number
 		}
 		findings = append(findings, finding(
 			bomCharacterRule{}.ID(),
 			lint.SeverityWarn,
-			file.Path,
+			document.DisplayPath,
 			lineNumber,
 			"file starts with a UTF-8 BOM",
 		))
