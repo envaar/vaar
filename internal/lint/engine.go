@@ -37,10 +37,18 @@ func NewEngine(rules ...Rule) *Engine {
 	return &Engine{rules: copied}
 }
 
+// SelectRules validates and resolves rule-selection input against the engine's
+// registered rules. The returned slice is independent of the engine's rule
+// collection and is useful to compatibility adapters that need the selected
+// rules for fix planning or other orchestration concerns.
+func (e *Engine) SelectRules(opts EngineOptions) ([]Rule, error) {
+	return selectRules(e.rules, opts.OnlyRules, opts.SkipRules)
+}
+
 // Run selects and executes rules against snapshot. It performs no filesystem
 // I/O, parsing, mutation, rendering or exit-code mapping.
 func (e *Engine) Run(ctx context.Context, snapshot analysis.Snapshot, opts EngineOptions) ([]Finding, error) {
-	selected, err := selectRules(e.rules, opts.OnlyRules, opts.SkipRules)
+	selected, err := e.SelectRules(opts)
 	if err != nil {
 		return nil, err
 	}

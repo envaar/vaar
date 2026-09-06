@@ -253,6 +253,24 @@ func TestEngineSelectionPreservesOnlyAndSkipSemantics(t *testing.T) {
 	}
 }
 
+func TestEngineExposesSelectedRulesForCompatibilityAdapters(t *testing.T) {
+	first := engineTestRule{id: "first"}
+	second := engineTestRule{id: "second"}
+
+	selected, err := lint.NewEngine(first, second).SelectRules(lint.EngineOptions{
+		OnlyRules: []string{"second"},
+	})
+	if err != nil {
+		t.Fatalf("select rules failed: %v", err)
+	}
+	if len(selected) != 1 {
+		t.Fatalf("selected rules = %#v, want one rule", selected)
+	}
+	if selected[0].ID() != "second" {
+		t.Fatalf("selected rule = %q, want second", selected[0].ID())
+	}
+}
+
 func TestEnginePreservesEmptyRuleSetSelectionBehavior(t *testing.T) {
 	cases := []struct {
 		name string

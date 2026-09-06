@@ -20,21 +20,29 @@ import (
 // Runner executes a rule set over discovered dotenv files and keeps the
 // resulting report deterministic.
 type Runner struct {
-	rules []Rule
+	engine *Engine
 }
 
 // NewRunner copies the provided rules so callers can reuse or mutate their
 // input slice without affecting future runs.
 func NewRunner(rules ...Rule) *Runner {
-	copied := make([]Rule, len(rules))
-	copy(copied, rules)
-	return &Runner{rules: copied}
+	return &Runner{engine: NewEngine(rules...)}
+}
+
+func (r *Runner) ruleEngine() *Engine {
+	if r.engine != nil {
+		return r.engine
+	}
+	return NewEngine()
 }
 
 // ValidateRuleSelection checks the requested only/skip rule IDs against the
 // available rule set and returns the same validation errors that Run would.
 func ValidateRuleSelection(all []Rule, only, skip []string) error {
-	_, err := selectRules(all, only, skip)
+	_, err := NewEngine(all...).SelectRules(EngineOptions{
+		OnlyRules: only,
+		SkipRules: skip,
+	})
 	return err
 }
 
@@ -43,8 +51,12 @@ func ValidateRuleSelection(all []Rule, only, skip []string) error {
 // original findings that disappeared as fixed and keeps the post-fix findings.
 func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 	opts = normalizeOptions(opts)
+	engine := r.ruleEngine()
 
-	selected, err := selectRules(r.rules, opts.OnlyRules, opts.SkipRules)
+	selected, err := engine.SelectRules(EngineOptions{
+		OnlyRules: opts.OnlyRules,
+		SkipRules: opts.SkipRules,
+	})
 	if err != nil {
 		return Result{}, err
 	}
@@ -58,7 +70,7 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
-	return r.runWithSelection(ctx, opts, selection, selected)
+	return r.runWithSelection(ctx, opts, selection, engine, selected)
 }
 
 // RunWithSelection executes the configured rules against a pre-resolved scope
@@ -67,22 +79,26 @@ func (r *Runner) Run(ctx context.Context, opts Options) (Result, error) {
 // tree twice.
 func (r *Runner) RunWithSelection(ctx context.Context, opts Options, selection scope.Selection) (Result, error) {
 	opts = normalizeOptions(opts)
+	engine := r.ruleEngine()
 
-	selected, err := selectRules(r.rules, opts.OnlyRules, opts.SkipRules)
+	selected, err := engine.SelectRules(EngineOptions{
+		OnlyRules: opts.OnlyRules,
+		SkipRules: opts.SkipRules,
+	})
 	if err != nil {
 		return Result{}, err
 	}
 
-	return r.runWithSelection(ctx, opts, selection, selected)
+	return r.runWithSelection(ctx, opts, selection, engine, selected)
 }
 
-func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection scope.Selection, selected []Rule) (Result, error) {
+func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection scope.Selection, engine *Engine, selected []Rule) (Result, error) {
 	loaded, err := loadFiles(selection)
 	if err != nil {
 		return Result{}, err
 	}
 
-	findings, err := runRules(ctx, selected, loaded.snapshot)
+	findings, err := runRules(ctx, engine, opts, loaded.snapshot)
 	if err != nil {
 		return Result{}, err
 	}
@@ -100,7 +116,7 @@ func (r *Runner) runWithSelection(ctx context.Context, opts Options, selection s
 				return Result{}, err
 			}
 
-			remaining, err := runRules(ctx, selected, fixed.snapshot)
+			remaining, err := runRules(ctx, engine, opts, fixed.snapshot)
 			if err != nil {
 				return Result{}, err
 			}
@@ -126,8 +142,11 @@ func normalizeOptions(opts Options) Options {
 	return opts
 }
 
-func runRules(ctx context.Context, selected []Rule, snapshot analysis.Snapshot) ([]Finding, error) {
-	return NewEngine(selected...).Run(ctx, snapshot, EngineOptions{})
+func runRules(ctx context.Context, engine *Engine, opts Options, snapshot analysis.Snapshot) ([]Finding, error) {
+	return engine.Run(ctx, snapshot, EngineOptions{
+		OnlyRules: opts.OnlyRules,
+		SkipRules: opts.SkipRules,
+	})
 }
 
 type findingKey struct {
