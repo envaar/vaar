@@ -3,6 +3,11 @@
 
 package analysis
 
+import (
+	"sort"
+	"strings"
+)
+
 type DocumentID string
 
 type QuoteState string
@@ -66,6 +71,77 @@ type Document struct {
 	MixedLineEndings bool
 	EndsWithNewline  bool
 	Lines            []Line
+}
+
+// Declaration identifies one value-free assignment occurrence in a document.
+// It preserves only the document identity, user-facing path, and source line.
+type Declaration struct {
+	DocumentID  DocumentID
+	DisplayPath string
+	LineNumber  int
+}
+
+// KeyInventory is a read-only, document-local index of valid assignment keys
+// and their declaration locations.
+//
+// A key is valid when its analysis line has both HasAssignment and HasKey set.
+// This preserves the existing diff semantics: empty assignments count, while
+// comments, blank lines, bare keys, and malformed declarations do not.
+type KeyInventory struct {
+	keys         []string
+	declarations map[string][]Declaration
+}
+
+// NewKeyInventory builds a value-free inventory from one analysis document.
+// The inventory retains no reference to the document's line slice. Keys are
+// listed deterministically, while declarations retain source line order.
+func NewKeyInventory(document Document) KeyInventory {
+	declarations := make(map[string][]Declaration)
+
+	for _, line := range document.Lines {
+		if !line.HasAssignment || !line.HasKey {
+			continue
+		}
+
+		key := strings.Clone(line.Key)
+		declarations[key] = append(declarations[key], Declaration{
+			DocumentID:  document.ID,
+			DisplayPath: document.DisplayPath,
+			LineNumber:  line.Number,
+		})
+	}
+
+	keys := make([]string, 0, len(declarations))
+	for key := range declarations {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	return KeyInventory{
+		keys:         keys,
+		declarations: declarations,
+	}
+}
+
+// Contains reports whether key is present as a valid assignment key.
+func (i KeyInventory) Contains(key string) bool {
+	_, ok := i.declarations[key]
+	return ok
+}
+
+// Keys returns all valid assignment keys in deterministic lexical order.
+func (i KeyInventory) Keys() []string {
+	keys := make([]string, len(i.keys))
+	copy(keys, i.keys)
+	return keys
+}
+
+// Declarations returns all source-order occurrences of key. The returned
+// slice is independent of the inventory and is empty when key is absent.
+func (i KeyInventory) Declarations(key string) []Declaration {
+	declarations := make([]Declaration, len(i.declarations[key]))
+	copy(declarations, i.declarations[key])
+	return declarations
 }
 
 type Snapshot struct {
