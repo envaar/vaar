@@ -23,10 +23,10 @@ func (quoteCharacterRule) Description() string {
 
 func (quoteCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, document := range ctx.Snapshot.Documents() {
-		for _, line := range document.Lines {
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
+		document.RangeLines(func(line analysis.Line) {
 			if line.QuoteState != analysis.QuoteUnbalanced {
-				continue
+				return
 			}
 			findings = append(findings, finding(
 				quoteCharacterRule{}.ID(),
@@ -35,7 +35,7 @@ func (quoteCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 				line.Number,
 				"value has unbalanced quotes",
 			))
-		}
-	}
+		})
+	})
 	return findings, nil
 }

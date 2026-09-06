@@ -23,10 +23,10 @@ func (valueWithoutKeyRule) Description() string {
 
 func (valueWithoutKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, document := range ctx.Snapshot.Documents() {
-		for _, line := range document.Lines {
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
+		document.RangeLines(func(line analysis.Line) {
 			if line.HasKey || line.IsBlank || line.IsComment {
-				continue
+				return
 			}
 			if line.DelimiterState == analysis.DelimiterEquals || line.DelimiterState == analysis.DelimiterColon || line.HasValue {
 				findings = append(findings, finding(
@@ -37,7 +37,7 @@ func (valueWithoutKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 					"value appears without a valid key",
 				))
 			}
-		}
-	}
+		})
+	})
 	return findings, nil
 }

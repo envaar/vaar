@@ -73,6 +73,52 @@ type Document struct {
 	Lines            []Line
 }
 
+// DocumentView exposes document metadata and read-only line traversal without
+// exposing the snapshot's backing line slice.
+type DocumentView struct {
+	ID               DocumentID
+	SourcePath       string
+	DisplayPath      string
+	BOM              bool
+	MixedLineEndings bool
+	EndsWithNewline  bool
+
+	lines []Line
+}
+
+// RangeDocuments calls fn once for each document in source order. The view
+// does not expose mutable collection storage, so callers can inspect a
+// snapshot without allocating a complete defensive copy for every consumer.
+func (s Snapshot) RangeDocuments(fn func(DocumentView)) {
+	if fn == nil {
+		return
+	}
+
+	for _, document := range s.documents {
+		fn(DocumentView{
+			ID:               document.ID,
+			SourcePath:       document.SourcePath,
+			DisplayPath:      document.DisplayPath,
+			BOM:              document.BOM,
+			MixedLineEndings: document.MixedLineEndings,
+			EndsWithNewline:  document.EndsWithNewline,
+			lines:            document.Lines,
+		})
+	}
+}
+
+// RangeLines calls fn once for each line in source order. Each line is passed
+// by value, so changing the callback argument cannot mutate the snapshot.
+func (d DocumentView) RangeLines(fn func(Line)) {
+	if fn == nil {
+		return
+	}
+
+	for _, line := range d.lines {
+		fn(line)
+	}
+}
+
 // Declaration identifies one value-free assignment occurrence in a document.
 // It preserves only the document identity, user-facing path, and source line.
 type Declaration struct {

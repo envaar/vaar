@@ -3,7 +3,8 @@
 
 // Package analysis owns value-free, ordered document and line facts with ordered
 // provenance, plus narrow document-local key inventories and declaration
-// locations.
+// locations. Snapshots provide defensive collection access and allocation-aware
+// read-only traversal views for consumers that inspect documents repeatedly.
 // Engines consume these facts, but analysis does not decide lint severity,
 // diff output, query status, or mutation behavior. Key inventories record only
 // valid assignment-key presence and declaration locations; engines apply all

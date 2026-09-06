@@ -25,14 +25,14 @@ func (valueWithoutQuotesRule) Description() string {
 func (valueWithoutQuotesRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
 
-	for _, document := range ctx.Snapshot.Documents() {
-		for _, line := range document.Lines {
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
+		document.RangeLines(func(line analysis.Line) {
 			if !line.HasAssignment || !line.HasValue {
-				continue
+				return
 			}
 
 			if line.QuoteState != analysis.QuoteNone {
-				continue
+				return
 			}
 
 			if line.ValueContainsWhitespace {
@@ -44,8 +44,8 @@ func (valueWithoutQuotesRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 					"value containing whitespace should be enclosed in quotes",
 				))
 			}
-		}
-	}
+		})
+	})
 
 	return findings, nil
 }

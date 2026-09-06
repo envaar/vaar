@@ -25,10 +25,10 @@ func (keyWithoutValueRule) Description() string {
 
 func (keyWithoutValueRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, document := range ctx.Snapshot.Documents() {
-		for _, line := range document.Lines {
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
+		document.RangeLines(func(line analysis.Line) {
 			if !line.HasKey {
-				continue
+				return
 			}
 			if line.DelimiterState == analysis.DelimiterMissing || (line.DelimiterState == analysis.DelimiterEquals && !line.HasValue) {
 				message := fmt.Sprintf("%s is missing a value", line.Key)
@@ -40,7 +40,7 @@ func (keyWithoutValueRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 					message,
 				))
 			}
-		}
-	}
+		})
+	})
 	return findings, nil
 }

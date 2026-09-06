@@ -6,6 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 package deterministic
 
 import (
+	"github.com/envaar/vaar/internal/analysis"
 	"github.com/envaar/vaar/internal/envfile"
 	"github.com/envaar/vaar/internal/lint"
 )
@@ -24,9 +25,9 @@ func (extraBlankLineRule) Fix(data []byte) []byte { return envfile.CollapseBlank
 
 func (extraBlankLineRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, document := range ctx.Snapshot.Documents() {
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
 		run := 0
-		for _, line := range document.Lines {
+		document.RangeLines(func(line analysis.Line) {
 			if line.IsBlank {
 				run++
 				if run > 1 {
@@ -38,10 +39,10 @@ func (extraBlankLineRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 						"repeated blank line",
 					))
 				}
-				continue
+				return
 			}
 			run = 0
-		}
-	}
+		})
+	})
 	return findings, nil
 }

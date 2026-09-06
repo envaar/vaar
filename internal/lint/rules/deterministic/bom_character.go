@@ -6,6 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 package deterministic
 
 import (
+	"github.com/envaar/vaar/internal/analysis"
 	"github.com/envaar/vaar/internal/envfile"
 	"github.com/envaar/vaar/internal/lint"
 )
@@ -26,14 +27,18 @@ func (bomCharacterRule) Fix(data []byte) []byte { return envfile.StripBOM(data) 
 
 func (bomCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, document := range ctx.Snapshot.Documents() {
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
 		if !document.BOM {
-			continue
+			return
 		}
 		lineNumber := 1
-		if len(document.Lines) > 0 {
-			lineNumber = document.Lines[0].Number
-		}
+		hasLine := false
+		document.RangeLines(func(line analysis.Line) {
+			if !hasLine {
+				lineNumber = line.Number
+				hasLine = true
+			}
+		})
 		findings = append(findings, finding(
 			bomCharacterRule{}.ID(),
 			lint.SeverityWarn,
@@ -41,6 +46,6 @@ func (bomCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 			lineNumber,
 			"file starts with a UTF-8 BOM",
 		))
-	}
+	})
 	return findings, nil
 }

@@ -6,6 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 package deterministic
 
 import (
+	"github.com/envaar/vaar/internal/analysis"
 	"github.com/envaar/vaar/internal/envfile"
 	"github.com/envaar/vaar/internal/lint"
 )
@@ -26,12 +27,16 @@ func (endingBlankLineRule) Fix(data []byte) []byte { return envfile.TrimFinalBla
 
 func (endingBlankLineRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, document := range ctx.Snapshot.Documents() {
-		if len(document.Lines) == 0 {
-			continue
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
+		var last analysis.Line
+		hasLine := false
+		document.RangeLines(func(line analysis.Line) {
+			last = line
+			hasLine = true
+		})
+		if !hasLine {
+			return
 		}
-
-		last := document.Lines[len(document.Lines)-1]
 		if !document.EndsWithNewline || last.IsBlank {
 			findings = append(findings, finding(
 				endingBlankLineRule{}.ID(),
@@ -41,6 +46,6 @@ func (endingBlankLineRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 				"file must end with exactly one final newline",
 			))
 		}
-	}
+	})
 	return findings, nil
 }

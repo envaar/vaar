@@ -5,7 +5,10 @@ SPDX-License-Identifier: Apache-2.0
 
 package deterministic
 
-import "github.com/envaar/vaar/internal/lint"
+import (
+	"github.com/envaar/vaar/internal/analysis"
+	"github.com/envaar/vaar/internal/lint"
+)
 
 type spaceCharacterRule struct{}
 
@@ -20,13 +23,13 @@ func (spaceCharacterRule) Description() string {
 
 func (spaceCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, document := range ctx.Snapshot.Documents() {
-		for _, line := range document.Lines {
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
+		document.RangeLines(func(line analysis.Line) {
 			if line.IsBlank || line.IsComment {
-				continue
+				return
 			}
 			if !line.SpaceBeforeDelimiter && !line.SpaceAfterDelimiter {
-				continue
+				return
 			}
 			findings = append(findings, finding(
 				spaceCharacterRule{}.ID(),
@@ -35,7 +38,7 @@ func (spaceCharacterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 				line.Number,
 				"line has spaces around the key, delimiter or value",
 			))
-		}
-	}
+		})
+	})
 	return findings, nil
 }

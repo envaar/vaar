@@ -66,6 +66,10 @@ func (e *Engine) Run(ctx context.Context, snapshot analysis.Snapshot, opts Engin
 // selectRules applies --only and --skip in declaration order so the selected
 // set stays predictable for completions, tests and report output.
 func selectRules(all []Rule, only, skip []string) ([]Rule, error) {
+	if len(all) == 0 {
+		return nil, nil
+	}
+
 	allowed := make(map[string]Rule, len(all))
 	ordered := make([]Rule, 0, len(all))
 	for _, rule := range all {
@@ -73,34 +77,18 @@ func selectRules(all []Rule, only, skip []string) ([]Rule, error) {
 		ordered = append(ordered, rule)
 	}
 
-	for _, id := range only {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			return nil, fmt.Errorf("invalid empty rule ID in --only")
-		}
-		if _, ok := allowed[id]; !ok {
-			return nil, fmt.Errorf("unknown lint rule %q", id)
-		}
-	}
-	for _, id := range skip {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			return nil, fmt.Errorf("invalid empty rule ID in --skip")
-		}
-		if _, ok := allowed[id]; !ok {
-			return nil, fmt.Errorf("unknown lint rule %q", id)
-		}
-	}
-
-	if len(all) == 0 {
-		return nil, nil
-	}
-
 	selectedIDs := make(map[string]struct{}, len(all))
 
 	if len(only) > 0 {
 		for _, id := range only {
-			selectedIDs[strings.TrimSpace(id)] = struct{}{}
+			id = strings.TrimSpace(id)
+			if id == "" {
+				return nil, fmt.Errorf("invalid empty rule ID in --only")
+			}
+			if _, ok := allowed[id]; !ok {
+				return nil, fmt.Errorf("unknown lint rule %q", id)
+			}
+			selectedIDs[id] = struct{}{}
 		}
 	} else {
 		for _, rule := range ordered {
@@ -110,7 +98,14 @@ func selectRules(all []Rule, only, skip []string) ([]Rule, error) {
 
 	if len(skip) > 0 {
 		for _, id := range skip {
-			delete(selectedIDs, strings.TrimSpace(id))
+			id = strings.TrimSpace(id)
+			if id == "" {
+				return nil, fmt.Errorf("invalid empty rule ID in --skip")
+			}
+			if _, ok := allowed[id]; !ok {
+				return nil, fmt.Errorf("unknown lint rule %q", id)
+			}
+			delete(selectedIDs, id)
 		}
 	}
 

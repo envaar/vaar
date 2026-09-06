@@ -25,11 +25,11 @@ func (duplicateKeyRule) Description() string {
 
 func (duplicateKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, document := range ctx.Snapshot.Documents() {
-		seen := make(map[string]int, len(document.Lines))
-		for _, line := range document.Lines {
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
+		seen := make(map[string]int)
+		document.RangeLines(func(line analysis.Line) {
 			if !line.HasKey || line.DelimiterState == analysis.DelimiterMissing {
-				continue
+				return
 			}
 			if _, ok := seen[line.Key]; ok {
 				findings = append(findings, finding(
@@ -39,10 +39,10 @@ func (duplicateKeyRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 					line.Number,
 					fmt.Sprintf("%s is defined more than once", line.Key),
 				))
-				continue
+				return
 			}
 			seen[line.Key] = line.Number
-		}
-	}
+		})
+	})
 	return findings, nil
 }

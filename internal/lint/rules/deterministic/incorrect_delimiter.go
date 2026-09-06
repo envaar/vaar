@@ -25,10 +25,10 @@ func (incorrectDelimiterRule) Description() string {
 
 func (incorrectDelimiterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 	findings := make([]lint.Finding, 0)
-	for _, document := range ctx.Snapshot.Documents() {
-		for _, line := range document.Lines {
+	ctx.Snapshot.RangeDocuments(func(document analysis.DocumentView) {
+		document.RangeLines(func(line analysis.Line) {
 			if !line.HasKey || line.DelimiterState != analysis.DelimiterColon {
-				continue
+				return
 			}
 			findings = append(findings, finding(
 				incorrectDelimiterRule{}.ID(),
@@ -37,7 +37,7 @@ func (incorrectDelimiterRule) Run(ctx lint.Context) ([]lint.Finding, error) {
 				line.Number,
 				fmt.Sprintf("%s uses ':' instead of '='", line.Key),
 			))
-		}
-	}
+		})
+	})
 	return findings, nil
 }

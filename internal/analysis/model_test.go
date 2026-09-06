@@ -285,6 +285,47 @@ func TestSnapshotDefensivelyCopiesInput(t *testing.T) {
 	}
 }
 
+func TestSnapshotRangesDocumentsAndLinesThroughReadOnlyViews(t *testing.T) {
+	snapshot := analysis.NewSnapshot([]analysis.Document{{
+		ID:          analysis.DocumentID("document"),
+		SourcePath:  "/repo/.env",
+		DisplayPath: ".env",
+		BOM:         true,
+		Lines: []analysis.Line{
+			{Number: 1, Key: "FIRST", HasKey: true},
+			{Number: 2, Key: "SECOND", HasKey: true},
+		},
+	}})
+
+	var documents []string
+	var lines []string
+	snapshot.RangeDocuments(func(document analysis.DocumentView) {
+		documents = append(documents, string(document.ID), document.DisplayPath)
+		document.RangeLines(func(line analysis.Line) {
+			lines = append(lines, line.Key)
+			line.Key = "MUTATED"
+		})
+	})
+
+	if want := []string{"document", ".env"}; !reflect.DeepEqual(documents, want) {
+		t.Fatalf("document view values = %#v, want %#v", documents, want)
+	}
+	if want := []string{"FIRST", "SECOND"}; !reflect.DeepEqual(lines, want) {
+		t.Fatalf("line view values = %#v, want %#v", lines, want)
+	}
+
+	got := snapshot.Documents()
+	if got[0].Lines[0].Key != "FIRST" || got[0].Lines[1].Key != "SECOND" {
+		t.Fatalf("snapshot changed through read-only views: %#v", got[0].Lines)
+	}
+}
+
+func TestDocumentViewDoesNotExposeLineCollection(t *testing.T) {
+	if _, ok := reflect.TypeOf(analysis.DocumentView{}).FieldByName("Lines"); ok {
+		t.Fatal("DocumentView exposes a mutable Lines field")
+	}
+}
+
 func TestDocumentsReturnsDefensiveCopies(t *testing.T) {
 	snapshot := analysis.NewSnapshot([]analysis.Document{
 		{
