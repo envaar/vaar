@@ -554,7 +554,6 @@ func TestKeyInventoryReturnsDefensiveCopies(t *testing.T) {
 	declarations[0].DocumentID = "mutated"
 	declarations[0].DisplayPath = "mutated.env"
 	declarations[0].LineNumber = 99
-	declarations = declarations[:0]
 
 	if got, want := inventory.Keys(), []string{"KEEP", "TOKEN"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("Keys() after mutation = %#v; want %#v", got, want)
