@@ -38,6 +38,7 @@ Use the accurate matching evidence level for each rule page:
 | [leading-character](./deterministic/leading-character.md)     | Deterministic  | Flags leading whitespace before content.                    |
 | [quote-character](./deterministic/quote-character.md)         | Deterministic  | Flags unbalanced quote usage.                               |
 | [value-without-quotes](./deterministic/value-without-quotes.md) | Deterministic  | Flags unquoted values containing whitespace.                |
+| [substitution-key](./deterministic/substitution-key.md)       | Deterministic  | Flags malformed env-var substitution syntax inside values.  |
 | [space-character](./deterministic/space-character.md)         | Deterministic  | Flags spaces around the key, delimiter or value.            |
 | [trailing-whitespace](./deterministic/trailing-whitespace.md) | Deterministic  | Flags trailing spaces or tabs.                              |
 | [ending-blank-line](./deterministic/ending-blank-line.md)     | Deterministic  | Flags a file ending that does not match the current policy. |
